@@ -1,0 +1,1360 @@
+# Overview
+
+Welcome to TRMNL. Here you can learn to build plugins, connect your own hardware, and more.
+
+{% content-ref url="/pages/u6trxGun1rnuNlTTw6pw" %}
+[How it Works](/go/how-it-works)
+{% endcontent-ref %}
+
+{% content-ref url="/pages/u1UpHvvD2mFhcp0RVbob" %}
+[DIY TRMNL (Advanced)](/go/diy/introduction)
+{% endcontent-ref %}
+
+{% content-ref url="/pages/MKeO2k2VUNETuv9yNHtj" %}
+[Plugin Marketplace](/go/plugin-marketplace/introduction)
+{% endcontent-ref %}
+
+{% content-ref url="/pages/NCUv3lawQ1iN9ji2AJ3K" %}
+[Private API](/go/private-api/introduction)
+{% endcontent-ref %}
+
+{% content-ref url="/pages/URbaCbkOKXGEaFrw3LjJ" %}
+[Public API](/go/public-api/introduction)
+{% endcontent-ref %}
+
+
+# How it Works
+
+Overview of TRMNL's architecture.
+
+<figure><img src="/files/JpcbH854fxgBB4o936PF" alt="TRMNL device <> server lifecycle"><figcaption><p>Device, Server, Plugin Sync, Screen Render</p></figcaption></figure>
+
+The TRMNL **web server** hosts a growing directory of [first-party plugins](https://trmnl.com/integrations) and [community plugins](https://trmnl.com/recipes) that are driven by [API endpoints](https://trmnl.com/api-docs) + a [templating engine](https://help.trmnl.com/en/articles/10671186-liquid-101). Our [Framework UI](https://trmnl.com/framework) design system is recommended, but not required, for plugin development. Learn how to build custom plugins [here](https://help.trmnl.com/en/articles/9510536-private-plugins).
+
+Our [native devices](https://shop.trmnl.com/collections/devices) feature custom PCBs powered by ESP32 controllers ranging from C3 Mini to S3 and C5, 1800-6000 mAh LiPo batteries, and 7.5" - 10.3"+ EPD screens housed in injection-molded PC or ABS soft touch plastic. Customers may disassemble their device and mod their firmware without impacting our [Terms of Service](https://trmnl.com/terms).
+
+TRMNL **firmware** supports automatic OTA (over the air) updates to WiFi-connected devices and is [open source](https://github.com/usetrmnl/firmware). Here's how it works:
+
+1. Device wakes up and requests content from web server every *n* period\*
+2. Web server generates a 1- or 2-bit PNG image. Response JSON includes a link to this image and timing instructions for the next "refresh" request.
+3. Device renders the content, then goes to sleep for the instructed amount of time.
+
+{% hint style="info" %}
+\* "Displayable content" is the most recently created screen, in order of priority according to the [Playlists](https://help.trmnl.com/en/articles/11663305-playlist-scheduler) interface. "N" is a value in minutes, configurable by customers at a per-plugin or per-device level.
+{% endhint %}
+
+## Opinionated device <> server relationship
+
+Most IoT products support SSH-ing directly into peripheral devices. We've heard too many horror stories about how this can go wrong, and decided to invert the paradigm.
+
+**Your TRMNL device pings our server, never the other way around**.
+
+Each request to our `/api/display` endpoint ([docs](https://docs.trmnl.com/go/private-api/screens)) includes only the minimum details needed to support customers -- an API key, device mac address, firmware version, battery voltage, and WiFi signal strength.
+
+**We do not collect any footprint of your location or identity**, such as IP address or WiFi credentials. Your local network's SSID and password are stored only on your TRMNL device.
+
+When the TRMNL web server responds to a device's request we include only a few fields. These include `update_firmware` (true/false), a direct download link to the firmware's \[public] binary package, and whether the device should be reset. Customers may disable OTA updates, reset their device to transfer ownership, or destroy data from their web account.
+
+**TRMNL does not store rendered content over time.**
+
+Whenever the web server generates a new image it replaces the previous image. This [keeps our costs low](https://x.com/useTRMNL/status/1892058143636476374), affording perpetual service without subscription fees. This also protects users because we only have access to the most recent screen rendered for each of your plugins.
+
+
+# Screen Templating
+
+TRMNL's native design system for developing beautiful, e-ink friendly screens.
+
+## Overview
+
+The TRMNL OG device is an **800x480 pixel, black and white, 2-bit grayscale display**. This means we had to abandon a lot of modern web styling techniques. Learn more about this process [here](https://trmnl.com/blog/design-system).
+
+For the latest documentation on building beautiful plugins with TRMNL, see our Framework docs:\
+<https://trmnl.com/framework>
+
+### Quickstart (TRMNL account)
+
+The easiest way to start building with TRMNL is by [making a Private Plugin](https://trmnl.com/plugin_settings?keyname=private_plugin) from inside your account. This includes an inline editor, merge variable interpolation, and a live previewer.
+
+<figure><img src="/files/Q8x96Mp6cUZfGF1zleUn" alt=""><figcaption><p>TRMNL markup editor with live preview</p></figcaption></figure>
+
+### Quickstart (no TRMNL account)
+
+Create an HTML file with our plugins CSS + JS embedded in the `<head>`.
+
+The example below has simple markup for a "full" layout plugin. We also offer half vertical, half horizontal, and quadrant sized layouts.
+
+**NOTE:** This code includes `view` classes that are specific to public plugin development, ***not*** to be used within TRMNL editor.
+
+```erb
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" href="https://trmnl.com/css/latest/plugins.css">
+    <script src="https://trmnl.com/js/latest/plugins.js"></script>
+  </head>
+  <body class="environment trmnl">
+    <div class="screen">
+      <div class="view view--full">
+        <div class="layout">
+          <div class="columns">
+            <div class="column">
+              <div class="markdown">
+                <span class="title">Motivational Quote</span>
+                <div class="content content--center">“I love inside jokes. I hope to be a part of one someday.”</div>
+                <span class="label label--underline">Michael Scott</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="title_bar">
+          <img class="image" src="https://trmnl.com/images/plugins/trmnl--render.svg" />
+          <span class="title">Plugin Title</span>
+          <span class="instance">Instance Title</span>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
+```
+
+The above markup should produce a screen like this:
+
+<figure><img src="/files/8qkLywcl6yZXRzxLYQt8" alt=""><figcaption><p>Sample screen render with TRMNL's plugin CSS stylesheet</p></figcaption></figure>
+
+Note: in some cases you may need to include the 'Inter' font (inside the `<head>`) to achieve the same look and feel as TRMNL's in-browser markup editor described above:
+
+```
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;350;375;400;450;600;700&display=swap" rel="stylesheet">
+```
+
+### Customize and make it dynamic
+
+Use our [Framework Docs](https://trmnl.com/framework) to enhance your design and show/hide logic (example: [overflow management](https://trmnl.com/framework/overflow), [number formatting](https://trmnl.com/framework/format_value)).
+
+When you're satisfied with the design, replace dynamic content with `{{ variable }}` references. TRMNL uses the [Liquid templating library](https://shopify.github.io/liquid/) by Shopify to interpolate values into your template markup. You can then save
+
+{% hint style="info" %}
+[Tutorial - How to create a custom plugin](https://help.trmnl.com/en/articles/9510536-custom-plugins)
+{% endhint %}
+
+**Note**: You may also leverage [Liquid Filters](https://shopify.dev/docs/api/liquid/filters) to reduce the sanitization required by the service producing data for your TRMNL plugins. For example, you can convert "10" to "$10.00" via [money\_with\_currency](https://shopify.dev/docs/api/liquid/filters/money).
+
+
+# Screen Templating (Graphics)
+
+Go deeper with custom screen styling, data visualization, and more.
+
+## Overview
+
+The TRMNL design system is actively improving to suit the needs of our [growing plugin directory](https://trmnl.com/integrations) and requests from developers like you.
+
+As we extend [native components](https://trmnl.com/framework), you are welcome to provide in-line styling to plugin markup to achieve your desired effect.
+
+You may also included 3rd party libraries, for example [Highcharts](https://www.highcharts.com/), to create data visualizations like charts and graphs.
+
+## Quickstart
+
+Here's some example Markup content that will render an *ugly* line chart:
+
+```
+<script src="https://code.highcharts.com/highcharts.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartkick@5.0.1/dist/chartkick.min.js"></script><div class="screen">
+
+<div class="layout">
+  <div id="container">
+  </div>
+</div>
+<script>
+Highcharts.chart("container", {
+    title: {
+        text: "Chart demo"
+    },
+    credits: { enabled: false },
+    xAxis: {
+        tickInterval: 1,
+        type: "logarithmic"
+    },
+    yAxis: {
+        type: "logarithmic",
+        minorTickInterval: 0.1,
+    },
+    tooltip: {
+        headerFormat: "<b>{series.name}</b><br />",
+        pointFormat: "x = {point.x}, y = {point.y}"
+    },
+    series: [{
+        data: [1, 2, 4, 8, 16, 32, 64, 128, 256, 512],
+        pointStart: 1
+    }]
+});
+</script>
+```
+
+If this is saved into a [Private Plugin](https://trmnl.com/plugin_settings?keyname=private_plugin) > Markup field, the following screen will be rendered:
+
+<figure><img src="/files/KZ8JroBnmz6W31TmtA3m" alt=""><figcaption><p>Un-styled chart example</p></figcaption></figure>
+
+As you can see, this isn't pretty (yet).
+
+Here's another line chart with TRMNL-friendly styling:
+
+<figure><img src="/files/a5ihPdafcHcErmWlpZHu" alt=""><figcaption><p>Styled line chart example</p></figcaption></figure>
+
+Get all the code + learn how to do this here:\
+<https://trmnl.com/framework/chart>
+
+## More Charts and Graphs
+
+Our [Framework docs](https://trmnl.com/framework) are the best place for the latest examples and tips to improve the look and feel of graphical embeds from 3rd party tools like Highcharts.
+
+
+# Webhooks
+
+Send a payload of merge variables to create a custom screen.
+
+{% hint style="info" %}
+
+#### Before you begin
+
+Learn how to build Private Plugins [here](https://help.trmnl.com/en/articles/9510536-private-plugins). The guide below only explains how to use the "Webhook" data retrieval strategy.
+{% endhint %}
+
+### Rate Limits
+
+*Request volume*
+
+You may send data to TRMNL's server up to 12x per hour. [TRMNL+](https://help.trmnl.com/en/articles/11861887-trmnl-faq) subscribers may send up to 30x payloads per hour. Webhooks sent at a faster pace will receive a `429` rate limit response. To temporarily increase your rate limit during development, enable "Debug Logs" on your plugin settings page.
+
+*Request size*
+
+You may send up to 2kb of data. [TRMNL+](https://help.trmnl.com/en/articles/11861887-trmnl-faq) subscribers may send up to 5kb of data. To stay within these boundaries while also creating a data rich experience, consider using the `deep_merge` and `stream` strategies documented below.
+
+### Authorization
+
+TRMNL has Device API Keys, User API Keys, and Plugin Setting UUIDs. For private plugin screen generation, we'll use your Plugin Settings UUID.
+
+This is accessible from your plugin instance's configuration form > Webhook URL field.
+
+<figure><img src="/files/onujpICctLmWScbeCH3J" alt=""><figcaption><p>Private Plugin Webhook URL w/ UUID</p></figcaption></figure>
+
+{% hint style="info" %}
+**Note:** you must "save" (create) a private plugin instance to generate a UUID and Webhook URL.
+{% endhint %}
+
+### Set new content
+
+Send a `POST` request to your Webhook URL. Put data inside a `merge_variables` node like so:
+
+```
+curl "https://trmnl.com/api/custom_plugins/asdfqwerty1234" \
+  -H "Content-Type: application/json" \
+  -d '{"merge_variables": {"text":"You can do it!", "author": "Rob Schneider"}}' \
+  -X POST
+```
+
+You will see this payload inside the Your Variables dropdown of the Markup Editor.
+
+<figure><img src="/files/9jHNDEJH1SBEA7FW2aoc" alt=""><figcaption><p>Your variables - available inside the Markup Editor</p></figcaption></figure>
+
+### Get merge variable content
+
+To fetch existing `merge_variables` from a private plugin, `GET` from the same endpoint:
+
+```
+curl "https://trmnl.com/api/custom_plugins/asdfqwerty1234"
+```
+
+### Update existing content
+
+If your private plugin needs to maintain state over time, for example an ever-growing todo list or a data visualization, you may prefer to send only "new" data points to your TRMNL plugin.
+
+There are two strategies to accomplish this: `deep_merge`, and `stream`.
+
+#### Deep merge strategy
+
+The `deep_merge` strategy combines existing key/value pairs with the new values incoming on the webhook. It's a good way to update nested data with only a few values here and there.
+
+```
+curl "https://trmnl.com/api/custom_plugins/asdfqwerty1234" \
+  -H "Content-Type: application/json" \
+  -d '{"merge_variables": {"sensor": {"temperature": 42}}, "merge_strategy": "deep_merge"}' \
+  -X POST
+```
+
+{% hint style="info" %}
+**Note**: when using this strategy, [#rate-limits](#rate-limits "mention") (namely request size) still apply. New data will be merged with existing data and that payload must not exceed the maximum size.
+{% endhint %}
+
+#### Stream strategy
+
+The `stream` strategy is useful for accumulating values in arrays. Any top-level arrays are appended with the incoming values, and the `stream_limit` parameter ensures that old values drop off the arrays so they don't grow forever.
+
+```
+curl "https://trmnl.com/api/custom_plugins/asdfqwerty1234" \
+  -H "Content-Type: application/json" \
+  -d '{"merge_variables": {"temperatures": [40, 42]}, "merge_strategy": "stream", "stream_limit": 10}' \
+  -X POST
+```
+
+Now you may iterate through the combined data inside your markup, for example:
+
+<figure><img src="/files/DobTKzphd9BFtkHlolOR" alt=""><figcaption><p>Accessing streamed webhook data</p></figcaption></figure>
+
+## Troubleshooting
+
+For more help, see our [Private Plugin guide](https://help.trmnl.com/en/articles/9510536-custom-plugins) or join the developer Discord from your account tab.
+
+
+# Reusing Markup
+
+Keep yourself DRY!
+
+Each private plugin has a place to store **Shared** markup.
+
+Under the hood, the implementation is simple: **shared markup is prepended to every view layout before rendering**.
+
+This makes it a great place to define common JS and CSS resources without having to copy-and-paste them between every layout.
+
+```liquid
+<!-- shared markup -->
+<style>
+.shout { text-transform: uppercase; }
+</style>
+
+<!-- view markup -->
+<span class="shout">Brawndo! It's got what plants crave!</span>
+```
+
+### Reusable Liquid Templates
+
+You can also define custom Liquid templates (or "partials", or "components" – pick your favorite terminology) to reuse chunks of markup in any view layout.
+
+Our Liquid implementation provides a new tag, `{% template [name] %}` , which works together with the standard `{% render %}` tag so that templates can be both defined and used within the same context.
+
+```liquid
+<!-- shared markup -->
+{% template say_hello %}
+Hello there, {{ name }}.
+{% endtemplate %}
+
+<!-- view markup -->
+{% render "say_hello", name: "General Kenobi" %}
+```
+
+
+# Introduction
+
+An introduction to running TRMNL on your own hardware.
+
+There are 4 flavors to building the perfect setup for your needs:
+
+1. **Default** - buy our device, that runs our firmware, and pings our server
+2. **BYOD** - build your own device, that runs our firmware, and pings our server
+3. **BYOD/S** - build your own device, mod our firmware, and ping your own server
+4. **BYOS** - buy our device, mod our firmware, and ping your own server
+
+### Choosing your stack
+
+After starting TRMNL and going down the rabbit hole of DIY smart home, IoT, e-ink, and gadget communities, it became clear that end-to-end ownership, security, and data privacy are critical ingredients to building trust.
+
+With this in mind we decided to [open source our firmware](https://github.com/usetrmnl/firmware) and provide guides to reproduce the TRMNL experience *without* our servers in the middle.
+
+When considering how to build your own e-ink dashboard, it is our opinion that...
+
+* If you're not comfortable with coding, Option #1 is ideal.
+* If you're comfortable with high-level programming languages, Option #4 provides an 80/20 approach to privacy + security without breaking the bank or spending hours coding.
+* If you have have experience with micro controllers, Option #2 will give you the pride of full control over the look and feel of your device.
+* If you are a l33t programmer or simply have access to AI (half joking), Option #3 is the most comprehensive offering to customize TRMNL however you'd like.
+
+### Prerequisites
+
+Options 1, 3, and 4 are available to all customers for no extra charge.
+
+Option 2 requires a small monthly fee to cover your compute time on our servers, since we don't make any revenue on a device sale.
+
+### Next steps
+
+Once you've determined the best setup for your needs, find the relevant guide on the left underneath "DIY TRMNL."
+
+
+# BYOD
+
+Bring your own device to TRMNL.
+
+Before diving into "how," it's worth mentioning **the investment required to build your own device could be greater than our retail price**.
+
+Making a TRMNL from scratch is not an economically rational decision, but rather a labor of love. We learned this the ~~hard~~ fun way between December 2023 and July 2024.
+
+Here's what you can expect to spend per component:
+
+* Battery, $5 (unnecessary if you prefer plugged in)
+* EPD screen, $50 ([this one](https://amazon.com/dp/B075R69T93/) is compatible)
+* Microcontroller, $3-30 (build yourself or leverage a PCB prototyper)
+* Enclosure/case, $3-20 (print [one of ours](https://github.com/usetrmnl/mounts) or design your own)
+
+### Build from scratch (Advanced)
+
+**OSS approach**
+
+1. Build a device and [flash our firmware](https://github.com/usetrmnl/trmnl-firmware)
+2. Spin up a [BYOS server client](https://docs.trmnl.com/go/diy/byos#implementations)
+
+**OSS + closed source approach**
+
+1. Build a device and [flash our firmware](https://github.com/usetrmnl/trmnl-firmware)
+2. [Buy access](https://shop.trmnl.com/products/byod) to the TRMNL web app + API
+3. Create a BYOD device: <https://trmnl.com/claim-a-device>
+4. Visit your [device settings page](https://trmnl.com/devices/current/edit) to select your [Device Model](https://help.trmnl.com/en/articles/11547008-device-model-faq) and then, under the [Developer Perks](https://trmnl.com/devices/current/developer/edit) section set your DIY device's MAC address
+5. Your DIY device will render a 6-digit ID; this is your device's Friendly ID and is already visible inside your Device settings. No action is required.
+6. Connect native apps or **start building private plugins** from the Plugins tab; this is equivalent access as "Developer Edition" for TRMNL hardware.
+
+### DIY Kit (Intermediate)
+
+On July 17, 2025 we announced a partnership with Seeed Studio.
+
+* [Get the DIY kit](https://www.seeedstudio.com/TRMNL-7-5-Inch-OG-DIY-Kit-p-6481.html)
+* [Get a BYOD license](https://shop.trmnl.com/products/byod) (optional)
+* [Seeed Wiki - XIAO 7.5" panel](https://wiki.seeedstudio.com/xiao_7_5_inch_epaper_panel_with_trmnl/) (May 2025)
+* [Seeed Wiki - TRMNL DIY Kit](https://wiki.seeedstudio.com/trmnl_7inch5_diy_kit_main_page/) (July 2025)
+
+{% embed url="<https://www.youtube.com/watch?v=MZ8HMSGqBWI>" %}
+TRMNL + Seeed Studio partnership launch
+{% endembed %}
+
+If you're a Seeed Studio early adopter (XIAO esp32-c3 board), check out the community guides below for in-depth setup assistance. You can also leverage the [Seeed Wiki guide to TRMNL](https://wiki.seeedstudio.com/xiao_7_5_inch_epaper_panel_with_trmnl/).
+
+{% embed url="<https://www.youtube.com/watch?v=Tr__8OlQQms>" %}
+E-Paper Dashboard without coding | Xiao E-Paper Display and TRMNL Firmware
+{% endembed %}
+
+{% embed url="<https://www.youtube.com/watch?v=QAGTRrbQSBE>" %}
+Seeed Studio XIAO Esp32-C3 board
+{% endembed %}
+
+### Need Help?
+
+Send us a live chat or join the Developer-only Discord, accessible from your [Account](https://trmnl.com/account) tab.
+
+
+# BYOD/S
+
+Bring your own device, and build your own server for the device to ping.
+
+In the BYOD/S configuration, the only TRMNL IP is our [open source firmware](https://github.com/usetrmnl/firmware).
+
+### Device setup
+
+See our [alternate screens](https://github.com/usetrmnl/#alternative-screens-and-clients) and [BYOD guide](/go/diy/byod) for instructions to jailbreak or build a device that's compatible with our firmware.
+
+### Server quickstart
+
+The TRMNL web server generates PNG images. When a device pings our [Display API](/go/private-api/screens), the next-in-queue image is shared as an absolute URL inside a JSON response like this:
+
+```
+{
+  "image_url"=>"https://trmnl.s3.us-east-2.amazonaws.com/path-to-img.png"
+}
+```
+
+For ready-made OSS server clients, see [BYOS Implementations](https://docs.trmnl.com/go/diy/byos#implementations). To develop your own server that is TRMNL firmware compatible out of the box:
+
+1. [Build or jailbreak a device](/go/diy/byod)
+2. Change the base URL to your own server or local network from the WiFi Captive Portal
+3. Mimic the `api/setup` and `api/display` endpoints per our [firmware README](https://github.com/usetrmnl/firmware)
+4. Follow our [ImageMagick guide](/go/diy/imagemagick-guide) to create TRMNL firmware compatible images
+5. Profit(?)
+
+### Other infrastructure
+
+In the quickstart above we glossed over a critical element: "next-in-queue" images.
+
+At TRMNL we use a Playlists table to manage the ordering of plugin instances, letting users drag/drop different items in whatever sequence they prefer.
+
+<figure><img src="/files/mG9A20sBjRbiJKsyNZHZ" alt=""><figcaption><p>Drag/Drop Playlists UI</p></figcaption></figure>
+
+Each item in a Playlist is an *instance* of a Plugin, which we call a PluginSetting.
+
+This keeps our Plugins table immutable, for example Google Calendar is just a name, icon, and form field parameters. Meanwhile details about a *connection* to Google Calendar are stored inside a PluginSetting record. Keep this in mind as you build your own server -- do you want to allow multiple connections to the same parent plugin?
+
+TRMNL also offers a [Scheduler](https://help.trmnl.com/en/articles/11663305-playlist-scheduler). This makes it easy to dictate conditions for when and why a given plugin is displayed on your device.
+
+<figure><img src="/files/RQYLiFbtIkcc3ecrDuVV" alt="Scheduler in action"><figcaption><p>Playlist scheduler in action</p></figcaption></figure>
+
+Following our architecture is unnecessary for a self-hosted ePaper dashboard, but we do encourage you to check out those which have already been implemented in [BYOS clients](/go/diy/byos).
+
+
+# BYOS (Build Your Own Server)
+
+Buy a TRMNL device, then point it at your own server.
+
+### Why
+
+TRMNL intends to ensure that **every device is un-brickable and can run with zero external dependencies**. BYOS is one aspect of making this possible for you.
+
+### Quick Start
+
+1. Purchase a TRMNL from our [store](https://trmnl.com).
+2. Choose a BYOS implementation for your stack (see below). Our flagship implementation is [Terminus](https://github.com/usetrmnl/terminus), so we recommended you get started there.
+
+### Audience
+
+This page is primarily for BYOS maintainers but might also be helpful for anyone wanting to get a highly level over of what each implementation can do before spinning up on your own network.
+
+### Implementations
+
+We support multiple implementations developed by us and the community at large. The goal isn't for BYOS to match parity with our hosted solution but to provide enough of a pleasant solution for your own customized experience. There are trade offs either way but we've got you covered for whatever path you wish to travel.
+
+**Legend**
+
+Use this legend to understand the matrix of features below.
+
+* 🟢 Supported.
+* 🟡 Partially supported.
+* 🔴 Not supported or not implemented.
+* ⚪️ Unknown.
+
+**Matrix**
+
+Below is a list of all implementations in various languages/frameworks you can use to self-host and manage your devices with:
+
+<table><thead><tr><th width="150.58984375">Implementation</th><th>Stack</th><th width="121.6953125">Dashboard</th><th width="172.37109375">Auto-Provisioning</th><th width="111.859375">Devices</th><th>JSON Data API</th><th>Image Previews</th><th>Playlists</th><th>Plugins</th><th>Recipes</th><th>Sensors</th><th>Docker</th><th>Test Suite</th><th>Maintained</th><th>Semantic Versioning</th></tr></thead><tbody><tr><td><a href="https://github.com/usetrmnl/terminus"><strong>Terminus</strong></a></td><td>Ruby/Hanami</td><td>🟢</td><td>🟢</td><td>🟢</td><td>🟢</td><td>🟢</td><td>🟢</td><td>🟢</td><td>🟢</td><td>🟢</td><td>🟢</td><td>🟢</td><td>🟢</td><td>🟢</td></tr><tr><td><a href="https://github.com/usetrmnl/larapaper"><strong>LaraPaper</strong></a></td><td>PHP/Laravel</td><td>🟢</td><td>🟢</td><td>🟢</td><td>🟢</td><td>🟢</td><td>🟢</td><td>🟢</td><td>🟢</td><td>🔴</td><td>🟢</td><td>🟢</td><td>🟢</td><td>🔴</td></tr><tr><td><a href="https://github.com/usetrmnl/inker"><strong>Inker</strong></a></td><td>JavaScript</td><td>🟢</td><td>🟢</td><td>🟢</td><td>🟢</td><td>🟢</td><td>🟢</td><td>🟢</td><td>🟢</td><td>🔴</td><td>🟢</td><td>🟢</td><td>🟢</td><td>⚪️</td></tr><tr><td><a href="https://github.com/usetrmnl/byos_next"><strong>BYOS Next.js</strong></a></td><td>JavaScript/Next.js</td><td>🟢</td><td>🟢</td><td>🟢</td><td>🟢</td><td>🟢</td><td>🟢</td><td>🔴</td><td>🟢</td><td>🔴</td><td>🟢</td><td>🔴</td><td>🟢</td><td>🟢</td></tr><tr><td><a href="https://github.com/usetrmnl/byos_fastapi"><strong>BYOS Fast API</strong></a></td><td>Python/FastAPI</td><td>🟢</td><td>⚪️</td><td>🟢</td><td>🔴</td><td>🟢</td><td>🟢</td><td>🟢</td><td>⚪️</td><td>🔴</td><td>🔴</td><td>🔴</td><td>🔴</td><td>⚪️</td></tr><tr><td><a href="https://github.com/usetrmnl/byos_django"><strong>BYOS Django</strong></a></td><td>Python/Django</td><td>🔴</td><td>🔴</td><td>🟢</td><td>🟢</td><td>🟢</td><td>🔴</td><td>🔴</td><td>🔴</td><td>🔴</td><td>🟢</td><td>🔴</td><td>🔴</td><td>⚪️</td></tr><tr><td><a href="https://github.com/usetrmnl/byos_phoenix"><strong>BYOS Phoenix</strong></a></td><td>Elixir/Phoenix</td><td>🔴</td><td>🔴</td><td>🟢</td><td>🟢</td><td>🟢</td><td>🟢</td><td>🔴</td><td>🔴</td><td>🔴</td><td>🔴</td><td>🔴</td><td>🔴</td><td>⚪️</td></tr></tbody></table>
+
+The following provides a detailed breakdown of each of the above features:
+
+* **Dashboard**: Provides a high level overview of information mostly in terms of quick links, statistics, charts, graphs, system health, etc.
+* **Auto-Provisioning**: Devices can be automatically provisioned once added to your network. This includes the automatic provisioning of new and existing devices.
+* **Devices**: Provides device management in terms of updating each device, viewing current image, viewing logs, and more.
+* **JSON Data API**: Provides full API support using a JSON Data API for device management, image generation, logging, and more.
+* **Image Previews**: Provides a UI for quickly, and dynamically, generating new device screens.
+* **Playlists**: Supports playlist configuration and management in terms of timing, order, and display of screens on devices. This can also include proxying to our Core server.
+* **Plugins**: Supports installation and hosting of custom plugins. This can also include proxying to our Core server.
+* **Recipes**: Supports installation and hosting of custom plugins. This can also include proxying to our Core server.
+* **Sensors**: Supports sensors connected via [Qwiic Cables](https://www.sparkfun.com/flexible-qwiic-cable-50mm.html) either to the server (via Raspberry Pi) or via a TRMNL compatible device. Please see the [TRMNL Sensor Scanner](https://github.com/usetrmnl/sensor_scanner) project for further details.
+* **Docker**: Supports Docker for both local development and production deployment.
+* **Test Suite**: Has a test suite with near 100% test coverage, is fully runnable locally, and is wired up with automatic Continuous Integration (CI) builds.
+* **Maintained**: Project is maintained and kept up-to-date on a weekly (or monthly) basis in terms of dependencies, firmware updates, and keeping up-to-date with any/all Core changes.
+* **Semantic Versioning**: Supports [strict semantic versioning](https://alchemists.io/articles/strict_semantic_versioning).
+
+### API
+
+At a minimum, the following API endpoints should be supported for all BYOS implementations:
+
+#### Setup
+
+```shell
+curl "http://byos.local/api/setup" \
+    -H 'ID: <device_mac_address>' \
+    -H 'Content-Type: application/json'
+```
+
+#### Display
+
+```bash
+curl "http://byos.local/api/display" \
+     -H 'ID: <device_mac_address>' \
+     -H 'Content-Type: application/json'
+```
+
+#### Logs
+
+```bash
+curl "http://byos.local/api/log" \
+     -H 'ID: <device_mac_address>' \
+     -H 'Content-Type: application/json'
+```
+
+💡 For a detailed breakdown of all API endpoints and what they can do, please refer to the [Terminus API Documentation](https://github.com/usetrmnl/byos_hanami?tab=readme-ov-file#apis) or the [TRMNL API](https://github.com/usetrmnl/trmnl-api) gem which provides a Ruby API client for talking to our servers.
+
+### Securing With HTTPS
+
+Most BYOS implementations serve up content over plain HTTP. If you prefer TLS connections, you can put a reverse proxy in front of the server. Caddy is a popular option. You can use self-signed certificates, or real ones from Let's Encrypt. See [this community issue](https://github.com/usetrmnl/trmnl-firmware/issues/58#issue-2826999580) for details on how to set it up yourself.
+
+
+# ImageMagick Guide
+
+Create TRMNL-friendly images.
+
+TRMNL supports BMP3 and PNG images natively, starting with [FW v1.5.2](https://github.com/usetrmnl/firmware/releases/tag/v1.5.2). Below are some tips to generate TRMNL compatible images for DIY devices or [Alias](https://help.trmnl.com/en/articles/10701448-alias-plugin)/[Redirect](https://help.trmnl.com/en/articles/11035846-redirect-plugin) plugin applications.
+
+## Generating a BMP3 image <a href="#h_de4d75d195" id="h_de4d75d195"></a>
+
+Convert command
+
+```
+magick input.png -monochrome -colors 2 -depth 1 -strip bmp3:output.bmp
+```
+
+Identify command
+
+```
+% magick identify output.bmp 
+output.bmp BMP3 800x480 800x480+0+0 1-bit sRGB 2c 48062B 0.020u 0:00.001
+```
+
+Please note that the output of above needs to match exactly with your file.
+
+## Generating a PNG image (1 bit) <a href="#h_6b95d41fbd" id="h_6b95d41fbd"></a>
+
+Converting an image
+
+```
+magick input.png -monochrome -colors 2 -depth 1 -strip png:output.png    
+```
+
+Dithering an image
+
+```
+magick input.png -dither FloydSteinberg -remap pattern:gray50 -depth 1 -strip png:output.png
+```
+
+Identify command
+
+```
+% magick identify output.png 
+output.png PNG 800x480 800x480+0+0 8-bit Grayscale Gray 2c 1607B 0.000u 0:00.000
+```
+
+## Generating a PNG image (2 bit) <a href="#h_6b95d41fbd" id="h_6b95d41fbd"></a>
+
+**This feature is experimental** and designed for OG model devices running [FW 1.6.0+](https://trmnl.com/flash) with grayscale + fast refresh support. After creating an image, upload it to a public or private/local network and point to it with an [Alias plugin](https://help.trmnl.com/en/articles/10701448-alias-plugin) instance.
+
+First create a color map:
+
+```
+magick -size 4x1 xc:#000000 xc:#555555 xc:#aaaaaa xc:#ffffff +append -type Palette colormap-2bit.png
+```
+
+Then convert your image with the map:
+
+```
+magick input.jpeg -resize 800x480\! -dither FloydSteinberg -remap colormap-2bit.png -define png:bit-depth=2 -define png:color-type=0 output.png
+```
+
+
+# Introduction
+
+TRMNL's plugin marketplace lets anyone publish and share their work.
+
+Our plugin marketplace is where developers can make plugins for other users to install. Since November 2025 [TRMNL pays developers](https://trmnl.com/blog/creator-fund) for their work.
+
+There are 2 approaches to publishing plugins for other users — Recipe, or Third Party. Review the differences between them before continuing:
+
+{% embed url="<https://help.trmnl.com/en/articles/10546870-compare-custom-plugin-types>" %}
+
+**Recipes** live inside TRMNL and do not require 3rd party dependencies, user auth, etc. This is our recommended path for plugin development. You can provide [custom form fields](https://help.trmnl.com/en/articles/10513740-custom-plugin-form-builder), monitor [usage analytics](https://trmnl.com/blog/plugin-analytics), and optionally middleman with your own services for even more control. Browse 100s of published Recipes [here](https://trmnl.com/recipes), or start building [here](https://help.trmnl.com/en/articles/9510536-private-plugins).
+
+**Third Party plugins** require a simplified OAuth2 flow with TRMNL. In this scenario, the plugin author (you) maintains user PII and is responsible for data privacy and security. TRMNL fetches markup from your server at regular intervals and generates images for the connected user's device. To build a Third Party plugin, continue reading this guide. Or browse native + third party plugins [here](https://trmnl.com/integrations).
+
+
+# Plugin Creation
+
+Creating a plugin OAuth client.
+
+You can create a new plugin by visiting the following URL:
+
+```
+https://trmnl.com/plugins/my/new
+```
+
+<figure><img src="/files/qZkXms8EmhgxICLO7DPP" alt="" width="375"><figcaption><p>TRMNL public plugin client</p></figcaption></figure>
+
+You'll have to provide the following information about your plugin.
+
+**Name**: Branded title (if applicable, ex "Vandelay Industries") or brief tag that describes the plugin's functionality
+
+**Description**: Additional text to help differentiate your plugin from others
+
+**Icon**: PNG format preferred
+
+**Installation URL**: Endpoint where TRMNL should trigger the installation flow
+
+**Installation Success Webhook URL**: Where you want to receive installation success events as a webhook
+
+**Plugin Management URL**: Where TRMNL users can manage their plugins
+
+**Plugin Markup URL:** Endpoint where TRMNL should ping your webserver for markup content
+
+**Uninstallation Webhook URL**: Where you want to receive uninstallation events as a webhook
+
+
+# Plugin Installation Flow
+
+OAuth installation flow between TRMNL and your web server.
+
+<figure><img src="/files/kVDLyPGikQLyhovykgZx" alt="Plugin installation flow between TRMNL and your web server"><figcaption></figcaption></figure>
+
+Third Party plugins use a simplified OAuth2 flow. There is no `client_id` or `client_secret` to manage — TRMNL identifies your plugin by the URLs you registered during [Plugin Creation](/go/plugin-marketplace/plugin-creation), and each installation is authorized by a single-use `code`.
+
+1. **Installation Request**
+
+When a user installs your plugin, TRMNL redirects their browser to your `installation_url`. This is a `GET` request, so both parameters arrive in the query string (URL-encoded):
+
+* `code` — a single-use installation code, unique to this user + plugin
+* `installation_callback_url` — the TRMNL URL you send the user back to once installation is complete (see Step 4)
+
+```bash
+GET 'https://your-server.com/your-installation-url?code=abc123&installation_callback_url=https%3A%2F%2Ftrmnl.com%2Fplugin_settings%2Fnew%3Fkeyname%3Dyour_plugin%26code%3Dabc123'
+```
+
+2. **Fetch Access Token**
+
+Exchange the `code` from Step 1 for an `access_token` by sending a `POST` request to TRMNL's token endpoint. The `code` is the only parameter required, sent as a form-encoded body:
+
+```bash
+curl -XPOST 'https://trmnl.com/oauth/token' \
+-H 'Content-Type: application/x-www-form-urlencoded' \
+-d 'code=abc123'
+```
+
+3. **Access Token**
+
+TRMNL responds with a JSON body containing the `access_token`. Persist this token — you'll use it as the Bearer token to authenticate the [screen generation](/go/plugin-marketplace/plugin-screen-generation-flow) requests TRMNL sends to your server.
+
+```json
+{ "access_token": "a1b2c3d4e5f6..." }
+```
+
+If the `code` is missing or invalid, TRMNL responds with an error body instead (note: the HTTP status is still `200`):
+
+```json
+{ "error": true, "message": "invalid code" }
+```
+
+4. **Installation Callback**
+
+Redirect the user's browser to the `installation_callback_url` you received in Step 1. This `GET` redirect returns them to TRMNL to finish connecting the plugin.
+
+```bash
+GET '<installation_callback_url>'
+```
+
+5. **Success Webhook**
+
+Once the user has finished installing the plugin, TRMNL sends a `POST` request to your `installation_success_webhook_url`. The request is authenticated with the user's `access_token` and the body is JSON.
+
+HTTP Headers:
+
+```
+Authorization: Bearer <access_token>
+Content-Type: application/json
+```
+
+Body:
+
+```json
+{
+  "user": {
+    "id":5678,
+    "name":"Ronak J",
+    "email":"ronak@trmnl.com",
+    "first_name":"Ronak",
+    "last_name":"J",
+    "locale":"en",
+    "time_zone":"Pacific Time (US & Canada)",
+    "time_zone_iana":"America/Los_Angeles",
+    "utc_offset":-28800,
+    "plugin_setting_id":1234,
+    "uuid": "674c9d99-cea1-4e52-9025-9efbe0e30901"
+  }
+}
+```
+
+Time zone mappings are available here under "Constants:"\
+<https://api.rubyonrails.org/classes/ActiveSupport/TimeZone.html>
+
+The `plugin_setting_id`is useful for building a redirect URI in your own application, for example to send a user back to trmnl.com/plugin\_settings/:plugin\_setting\_id/edit.
+
+
+# Plugin Management Flow
+
+Ability for users to manage their plugin on your web server.
+
+<figure><img src="/files/qzOHkGzd52Cv5VALcOiF" alt=""><figcaption></figcaption></figure>
+
+After a user installs your plugin, they may want to manage the plugin settings. TRMNL will redirect the user to the `plugin_management_url` with a unique user identifier (UUID) params, so that you can identify them on your web server.
+
+Example request:\
+`https://yourapp.com/manage?uuid=ae48d6ac-48f4-4aed-8464-bad68368e97c`
+
+**Note**: The UUID is the unique user identifier in the TRMNL plugin architecture. This allows TRMNL users to have multiple instances of the same plugin, each with their own settings.
+
+If you saved the `plugin_setting_id` from the [Installation Flow](/go/plugin-marketplace/plugin-installation-flow), you can build a helpful "Back to TRMNL" button in your Management UI.
+
+By appending `?force_refresh=true` to your return link, TRMNL will invoke a [Screen Generation request](/go/plugin-marketplace/plugin-screen-generation-flow) on the user's behalf and present a toast message when they're back inside the TRMNL application.
+
+<figure><img src="/files/ZugNT9VzPQhqH6u5sjhK" alt=""><figcaption><p>Force Refresh toast message</p></figcaption></figure>
+
+
+# Plugin Screen Generation Flow
+
+Creating image content to display on a user's device.
+
+<figure><img src="/files/TcZ3G6rbyq1RnYmU4hny" alt=""><figcaption></figcaption></figure>
+
+TRMNL generates a screen every X minutes, where X is the refresh frequency set by the user.
+
+TRMNL generates screens by sending a POST request to the `plugin_markup_url` endpoint you specified during [Plugin Creation](/go/plugin-marketplace/plugin-creation). The request body will include the `user_uuid` (that particular user's plugin connection UUID) and some metadata. The request header contains an `authorization` key with the user's plugin connection `access_token`as the Bearer token. Here's an example of our server request:
+
+```bash
+curl -XPOST 'https://your-server.com/your-markup-url' \
+-H 'Authorization: Bearer xxx' \
+-H 'Content-Type: application/x-www-form-urlencoded' \
+-d 'user_uuid=xx&trmnl=<metadata-object>'
+```
+
+The `trmnl` object in this payload may or may not be useful for your plugin, but includes the user-defined instance name, device dimensions, user timezone, and so on. Here's an example, subject to change:
+
+```json
+{
+  "user": {
+    "name": "Jim Bob",
+    "first_name": "Jim",
+    "last_name": "Bob",
+    "locale": "en",
+    "time_zone": "Eastern Time (US & Canada)",
+    "time_zone_iana": "America/New_York",
+    "utc_offset": -14400
+  },
+  "device": {
+    "friendly_id": "XXXXXX",
+    "percent_charged": 74.17,
+    "wifi_strength": 50,
+    "height": 480,
+    "width": 800
+  },
+  "system": {
+    "timestamp_utc": 1747596567
+  },
+  "plugin_settings": {
+    "instance_name": "Upcoming Assignments"
+  }
+}
+```
+
+Your web server should respond with HTML inside root nodes named `markup`, `markup_quadrant`, and so on to satisfy each layout offered by TRMNL. This markup should include whatever values you want the user to see rendered on their screen.
+
+{% hint style="success" %}
+**Pro tip**: use the [Private Plugin](https://trmnl.com/plugin_settings/new?keyname=private_plugin) markup editor to develop the frontend of your plugin. This in-browser text editor supports live refresh and automatically applies the correct styling and JavaScript helpers to your markup.
+{% endhint %}
+
+TRMNL uses the markup in your server's response to generate an e-ink friendly image. If the user connecting your plugin created a "full screen" playlist item, TRMNL will leverage the HTML inside the `markup` node. If they connected your plugin as part of a left/right Mashup, TRMNL will look for HTML inside the `markup_half_vertical` node.
+
+Here's an example of a valid server response:
+
+```json
+{
+   "markup":"<div class=\"view view--full\"><div class=\"layout\"><div class=\"columns\"><div class=\"column\"><div class=\"markdown gap--large\"><span class=\"title\">Daily Scripture</span><div class=\"content-element content content--center\">Hello</div><span class=\"label label--underline mt-4\">World</span></div></div></div></div><div>",
+   "markup_half_horizontal":"<div class=\"view view--half_horizontal\">Your content</div>",
+   "markup_half_vertical":"<div class=\"view view--half_vertical\">Your content</div>",
+   "markup_quadrant":"<div class=\"view view--quadrant\">Your content</div>",
+   "shared":""
+}
+```
+
+**Note:** in order for your plugin to be published in the TRMNL public marketplace, you must provide HTML for all available markup layouts. [View them here](https://help.trmnl.com/en/articles/10168132-mashups).
+
+
+# Plugin Uninstallation Flow
+
+Handling user uninstallation requests on your web server.
+
+<figure><img src="/files/zjnTxiwj0jSo5hb8Dy6C" alt=""><figcaption></figcaption></figure>
+
+When a user uninstalls your plugin, as a best practice TRMNL will send a notification via webhook. The POST request is sent to the `uninstallation_webhook_url` in JSON format with the following details:
+
+HTTP Headers:
+
+```
+Authorization: Bearer <access_token>
+Content-Type: application/json
+```
+
+Body:
+
+<pre class="language-json"><code class="lang-json"><strong>{"user_uuid": "uuid-of-the-user"}
+</strong></code></pre>
+
+Parse this webhook payload to perform a "teardown" or similar strategy on your web server.
+
+
+# Going Live
+
+Publish your plugin for all users with a simple submission flow.
+
+After building and testing your plugin, copy/paste the following application into an email to <team@trmnl.com>.
+
+Subject:
+
+```
+Public plugin submission - {{ plugin name }}
+```
+
+Body:
+
+```
+Hi team,
+
+Please review my plugin for the public marketplace:
+
+Plugin ID: {{ visit My Plugins > click Edit, copy integer ID from URL }}
+Owner Email: {{ should == inbox from which you are sending this message }}
+
+Why should this plugin be public vs private? How does it help other users?
+{{ should be different than your Description field. if your plugin is against our ethos (breeds distraction, not focus), it may be better as an open source + Private plugin. }}
+
+Video demonstration:
+{{ link to video, no audio required, of the plugin being installed from scratch. }}
+
+How can we test this plugin works?
+{{ preferably a demo login email/password that we can own forever, ex "team@trmnl.com" }}
+
+Will you promote TRMNL when this plugin is published? If so, how/where?
+{{ no wrong answers, but we prioritize plugins that help us grow }}
+
+Thanks,
+{{ your name }}
+```
+
+After receiving this information we'll test out your plugin, send revision requests (if applicable), and soft launch it to our Plugins marketplace.
+
+We can then discuss featuring your work in an upcoming email newsletter or other social channels. At any time you are welcome to post it in our developer-only Discord's "#flex" channel, prior to public approval.
+
+
+# Introduction
+
+Advanced features available for Developer edition devices.
+
+As outlined in our [open source firmware](https://github.com/usetrmnl/firmware), TRMNL exposes a GET endpoint that responds with image and other content for your device to store or render.
+
+```
+GET /api/display
+
+# request headers example
+{
+  'ID' => 'XX:XX:XX:XX',
+  'Access-Token' => '2r--SahjsAKCFksVcped2Q'
+}
+
+# response body example
+{
+  "image_url"=>"https://trmnl.s3.us-east-2.amazonaws.com/path-to-img.bmp",
+  "filename"=>"2025-05-10-plugin-T00:00:00",
+  "update_firmware"=>false
+}
+```
+
+**With a device's API key you can request content without a TRMNL device or TRMNL firmware**.
+
+In the following Private API docs we'll outline a few ways to take advantage of this information for your own privacy, security, and experimentation purposes.
+
+
+# Display API
+
+Retrieve TRMNL image data, device-free.
+
+First, set up a TRMNL device or [BYOD license](https://shop.trmnl.com/products/byod).
+
+Next, grab your API Key from [Devices > Edit](https://trmnl.com/devices) and make a request like below.
+
+### Auto advance content
+
+This endpoint is used by our firmware (on your device) to fetch new screen content. Making a request to this endpoint automatically 'advances' your Playlist to the next item in your queue. To simply grab the current screen instead, skip to the next section below.
+
+```
+curl https://trmnl.com/api/display --header "access-token:xxxxxx"
+```
+
+This will respond with several fields, for example:
+
+```
+{
+  "status"=>0, # will be 202 if no user_id is attached to device
+  "image_url"=>"https://trmnl.s3.us-east-2.amazonaws.com/path-to-img.png",
+  "image_name"=>"plugin-YYYY-MM-DD-TXX-XX-XXZ-hash",
+  "update_firmware"=>false,
+  "firmware_url"=>nil,
+  "refresh_rate"=>"1800",
+  "reset_firmware"=>false
+}
+```
+
+The `image_url` is likely the most interesting to you, as this may be leveraged by your own hardware to render content however you see fit.
+
+{% hint style="info" %}
+**Note**: TRMNL devices send a few additional values in the request headers by default, such as your WiFi connection strength (RSSI value), firmware version (ex: 1.3.7), and more.
+
+These attributes impact the response content by instructing the device to either update firmware, change its refresh rate, and so on. But excluding these values from your request is OK, just be aware that some response values may be nil.
+{% endhint %}
+
+### Current screen
+
+If you're expanding a TRMNL fleet with BYOD devices, such as a [Raspberry Pi](https://trmnl.com/blog/rpi-trmnl) or [Kindle](https://trmnl.com/guides/turn-your-amazon-kindle-into-a-trmnl), [Android](https://github.com/usetrmnl/trmnl-android), or [Kobo](https://github.com/usetrmnl/trmnl-kobo) tablet, you may prefer to mirror whatever content is showing on your official TRMNL or BYOD device.
+
+```
+curl https://trmnl.com/api/current_screen --header "access-token:xxxxxx"
+```
+
+This will respond with the following fields:
+
+```
+{"status" => 200,
+ "refresh_rate" => 1800,
+ "image_url" => "https://trmnl.com/rails/active_storage/blobs/redirect/hash-here/plugin-YYYY-MM-DD-TXX-XX-XXZ-hash",
+ "filename" => "plugin-YYYY-MM-DD-TXX-XX-XXZ-hash",
+ "rendered_at" => nil
+ }
+```
+
+{% hint style="info" %}
+**Note**: the `current_screen` endpoint was designed for consumption by our [Chrome extension](https://trmnl.com/chrome). Please don't abuse it.
+{% endhint %}
+
+
+# Plugin Data API
+
+Retrieve parsed plugin JSON data for your own templates.
+
+No matter how many customizations we add to plugins, there will always be good reasons to add more. Instead of cluttering our interface, TRMNL offers a "data only" mode.
+
+{% hint style="info" %}
+For more context on this feature, go [here](https://trmnl.com/blog/calendar-hackathon). For live examples, [go here](https://trmnl.com/blog/introducing-data-mode).
+{% endhint %}
+
+### Looking for the old way?
+
+[Go here](https://github.com/usetrmnl/api-docs/blob/4ce6efd395d26bfecc4d7e271ed758ebaa02283b/private-api/fetch-plugin-content.md) to set up a Data Mode plugin the ~~old~~ hard way.
+
+### How it works
+
+First, set up + hide an instance of the plugin you want to modify.
+
+1. Connect a plugin, for example the Weather, Stock Prices, Calendar, etc
+2. Navigate to Playlists and "hide" the plugin (click the eyeball icon), assuming you don't want to see its native form on your device. **This is important** because only plugins on a Playlist will sync fresh data.
+
+Next, build a Private Plugin.
+
+1. Navigate to Plugins > Private Plugin, select "Plugin Merge" as the Strategy
+2. Click Edit Markup
+
+<figure><img src="/files/BuaveFeOgUoMTjOSSZJR" alt=""><figcaption><p>Private Plugin > Edit Markup</p></figcaption></figure>
+
+Parsed data will appear inside a `<plugin_keyname>_<plugin_setting_id>` node of the "Merge Variables" dropdown. You may need to click "Force Refresh" from the private plugin settings view to ensure data has been fetched.
+
+<figure><img src="/files/qJzy9bar8eBtcH57vjvp" alt=""><figcaption><p>Example - Outlook Calendar events JSON</p></figcaption></figure>
+
+Reference as many connected plugins as you'd like. When TRMNL refreshes those plugins per your [Playlist Schedule](https://help.trmnl.com/en/articles/11663305-playlist-scheduler), updated values will map over to your private plugin with the Plugin Merge strategy.
+
+### Markup Quickstart
+
+If you only want to make small changes to the TRMNL native design, steal that markup here:
+
+* <https://github.com/usetrmnl/plugins/> (raw inside `lib`, let us know what else you need)
+* <https://trmnl.com/plugins/demo> (rendered output, requires login)
+
+In the raw/GitHub option, note that native plugins leverage the ERB templating language, so markup `<% variable %>` references will need to be replaced with Liquid `{{ variable }}` and so forth.
+
+In the `/demo` option, click the plugin you're rebuilding and all layouts will appear with sample data. If you've connected a plugin natively, your latest cached JSON will be embedded instead of demo data.
+
+Another tip on the `/demo` option is to add `?data=true` to the URL, for example `https://trmnl.com/plugins/google_calendar?data=true` to see how TRMNL combines your own JSON data with our native ERB markup. If you have multiple instances that you'd like to check out, also append `&plugin_setting_id=<id-here>` to render a specific plugin instance on the demo page.
+
+
+# Account API
+
+Control aspects of your trmnl.com account
+
+In addition to the [device API](/go/private-api/screens), users who have purchased a developer license can access the account API. You can enumerate your devices, import and export plugins, control playlists, and more.
+
+See the [**OpenAPI specification**](https://trmnl.com/api-docs/index.html) for complete details.
+
+We have also open-sourced an official [**trmnl-api**](https://github.com/usetrmnl/trmnl-api) Ruby gem for API clients.
+
+{% hint style="info" %}
+These endpoints are being continually improved upon as we discover new use-cases, so please send us feedback with your API feature requests.
+{% endhint %}
+
+## Authentication
+
+The account API key can be retrieved from [your account settings](https://trmnl.com/account). It begins with `user_`.
+
+API authentication is done via the HTTP Authorization header with bearer tokens, e.g. `Authorization: Bearer user_xxxxx`
+
+## Example
+
+```javascript
+// GET https://trmnl.com/api/devices
+
+{
+  "data": [
+    {
+      "id": 123456,
+      "name": "My TRMNL",
+      "friendly_id": "A1B2C3",
+      "mac_address": "AB:CD:EF:12:34:56",
+      "battery_voltage": 3.9,
+      "rssi": -41
+    }
+  ]
+}
+```
+
+
+# More Endpoints
+
+Additional options to customize your setup.
+
+To interact with Devices, Playlists, Plugin Settings, and other resources, see our Swagger docs:
+
+[https://trmnl.com/api-docs/](https://trmnl.com/api-docs/index.html)
+
+
+# Introduction
+
+Open endpoints that don't require authentication.
+
+Whether you have a native TRMNL with Developer Edition, a BYOD license, or no device at all, you may benefit from publicly available data in JSON format.
+
+In the following guides you'll learn how to access Community plugins, supported [Device Models](https://trmnl.com/api/models), [Color Palettes](https://trmnl.com/api/palettes), and more.
+
+
+# Recipes API
+
+Search and sort community plugins.
+
+### Quickstart
+
+Execute a search at <https://trmnl.com/recipes>, then append JSON to the URL.
+
+```
+# search for "weather"
+https://trmnl.com/recipes?search=weather&sort-by=newest
+
+# in JSON format
+https://trmnl.com/recipes.json?search=weather&sort-by=newest
+```
+
+### List Recipes
+
+<mark style="color:green;">`GET`</mark> `/recipes.json`
+
+This endpoint is in alpha testing and may be moved (to `/api/recipes`) or changed (to `/api/plugins`) before the end of 2025.
+
+**Example Request**\
+`https://trmnl.com/recipes.json?sort-by=install`
+
+**Query Params**
+
+All are optional.
+
+<table><thead><tr><th width="194.3828125">Name</th><th width="180.94921875">Type</th><th>Description</th></tr></thead><tbody><tr><td><code>search</code></td><td>string</td><td>Name of the plugin (partial match OK)</td></tr><tr><td><code>sort-by</code></td><td>string</td><td>Option by which to rank results</td></tr><tr><td><code>user_id</code></td><td>integer</td><td>ID of the author, e.g. 51</td></tr><tr><td><code>per_page</code></td><td>integer</td><td>Results count (maximum 100, default 25)</td></tr></tbody></table>
+
+Valid `sort-by` options:
+
+* oldest
+* newest
+* popularity
+* fork
+* install
+
+**Example Response**
+
+{% tabs %}
+{% tab title="200" %}
+
+```json
+{
+  "data": [{
+      "id": 49610,
+      "user_id": 1158,
+      "name": "Weather Chum",
+      "published_at": "2025-05-14T05:32:00.000Z",
+      "icon_url": "https://trmnl-public.s3.us-east-2.amazonaws.com/ajjlbek4cabcvhk3s1lxggn8cgon",
+      "screenshot_url": "https://trmnl.s3.us-east-2.amazonaws.com/qv5d2r4hg4gxe0tnwhiatdfhuqzj?response-content-disposition=inline%3B%20filename%3D%22plugin-2025-04-30T19-47-15Z-21f687%22%3B%20filename%2A%3DUTF-8%27%27plugin-2025-04-30T19-47-15Z-21f687&response-content-type=image%2Fpng&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIA47CRUQUU4VKBBMOF%2F20251024%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251024T210603Z&X-Amz-Expires=300&X-Amz-SignedHeaders=host&X-Amz-Signature=c5795146177d7f539b0743890018338b8a9d7188d685d1e54dde83d842eb404d",
+      "author_bio": null,
+      "custom_fields": [
+        {
+          "keyname": "user_location",
+          "field_type": "string",
+          "name": "Weather Location",
+          "placeholder": "New York, NY",
+          "description": "Choose a location",
+          "help_text": "Please be precise. Examples: \u003C/br\u003E Paris, France (City/country) \u003C/br\u003E 10101 (Pass US Zipcode, UK Postcode, Canada Postal code)\u003C/br\u003E 33.7501,84.3885 (Lat/long)\u003C/br\u003E",
+          "required": true
+        },
+        {
+          "keyname": "metric",
+          "name": "Temperature Metric",
+          "description": "Celsius or Fahrenheit?",
+          "field_type": "select",
+          "options": [
+            "Fahrenheit",
+            "Celsius"
+          ],
+          "default": "Fahrenheit"
+        }
+      ],
+      "stats": {
+        "installs": 1,
+        "forks": 1230
+      }
+  }],
+  "total": 12,
+  "from": 1,
+  "to": 12,
+  "per_page": 25,
+  "current_page": 1,
+  "prev_page_url": null,
+  "next_page_url": "/recipes?page=2&search=weather&sort_by=popularity"
+}
+```
+
+{% endtab %}
+{% endtabs %}
+
+### Get a single Recipe
+
+<mark style="color:green;">`GET`</mark> `/recipes/{id}.json`
+
+**Example Request**\
+`https://trmnl.com/recipes/16382.json`
+
+**Example Response**
+
+{% tabs %}
+{% tab title="200" %}
+
+```json
+{
+  "data": {
+    "id": 16382,
+    "user_id": 934,
+    "name": "Matrix",
+    "published_at":"2025-02-10T11:33:00.000Z",
+    "icon_url": "https://trmnl-public.s3.us-east-2.amazonaws.com/mtpxyr22spnwjheeh5kv1p7tpk6n",
+    "screenshot_url": "https://trmnl.s3.us-east-2.amazonaws.com/jly9u094jtsc2bwmnhlnmwjnsokk?response-content-disposition=inline%3B%20filename%3D%22plugin-2025-04-10T12-47-23Z-776f51%22%3B%20filename%2A%3DUTF-8%27%27plugin-2025-04-10T12-47-23Z-776f51&response-content-type=image%2Fbmp&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIA47CRUQUU4VKBBMOF%2F20251024%2Fus-east-2%2Fs3%2Faws4_request&X-Amz-Date=20251024T210933Z&X-Amz-Expires=300&X-Amz-SignedHeaders=host&X-Amz-Signature=828e75fc333464c3ba13654c70434d307a8ca48053cd102f4a10a55e953c3ce2",
+    "author_bio": {
+      "keyname": "doesnt_matter",
+      "name": "About This Plugin",
+      "field_type": "author_bio",
+      "description": "Matrix brings the iconic digital rain from the movies to your screen. By default, it displays the current date in the classic style, but you can also customize it to show any message you want.",
+      "category": "calendar,life"
+    },
+    "custom_fields": [
+      {
+        "keyname": "doesnt_matter",
+        "name": "About This Plugin",
+        "field_type": "author_bio",
+        "description": "Matrix brings the iconic digital rain from the movies to your screen. By default, it displays the current date in the classic style, but you can also customize it to show any message you want.",
+        "category": "calendar,life"
+      },
+      {
+        "keyname": "message",
+        "field_type": "string",
+        "name": "Message",
+        "default": "%date",
+        "help_text": "%date to display current date"
+      }
+    ],
+    "stats": {
+      "installs": 25,
+      "forks": 176
+    }
+  }
+}
+```
+
+{% endtab %}
+{% endtabs %}
+
+
+# Categories API
+
+Valid plugin categories to increase search exposure.
+
+When developing a Public or Recipe style plugin, you may add indexed categories to improve visibility in search results.
+
+<https://trmnl.com/api/categories>
+
+
+# Introduction
+
+Provision devices and pre-load plugins for your customers.
+
+If you're a company with a custom plugin, TRMNL makes it easy to reward customers with free or discounted devices that arrive pre-connected to your platform.
+
+Example scenario:
+
+1. Acme SaaS has a subscriber dashboard for their email newsletter tool. Acme builds a custom plugin inside TRMNL to showcase this information.
+2. Acme wants to gift a free TRMNL device to their top customers. Acme creates coupon codes with the TRMNL Partners API that their customer can use at checkout for X% off their order.
+3. When Acme's customer device is shipped, it is associated to their account on Acme's platform. Upon unboxing + WiFi pairing, Acme's customer will see their Acme native dashboard on TRMNL device without any additional setup.
+
+Continue reading to learn how this works with just a single API request, or email <partners@trmnl.com> to get started.
+
+
+# Getting Started
+
+Become a TRMNL Partner.
+
+The TRMNL team manually approves each Partner, which involves the following:
+
+1. basic KYC to ensure our intentions align (*customer delight, not bulk discounts*)
+2. program negotiation (net-30 vs on-demand payment terms, optional quotas, etc)
+3. testing the Partner's custom plugin end-to-end
+
+**KYC** includes determining a Partner point of contact, getting some sense of weekly / monthly device provision volume, and possibly a small deposit.
+
+**Program negotiation** is simple and might look like this: "*Partner wants to award their customers a TRMNL device for 50% off. Partner can generate TRMNL discount codes for 50% off and will pay TRMNL monthly via invoice for the remaining 50%, less a 10% bulk discount.*"
+
+**Testing** entails the Partner providing TRMNL a demo user account on the Partner platform, with instructions to set up their custom plugin manually on an existing TRMNL account.
+
+
+# Provisioning Devices
+
+Stub a device + discount code with the Partners API.
+
+To preload a custom plugin on a device for your customer, you can generate a coupon code and share the customer's relevant credentials in a single API request.
+
+**Step 1 - Partner requests a coupon**
+
+```
+POST /api/partners
+
+Headers: 
+Client-ID, Access-Token # provided by TRMNL team
+
+Body:
+{ 
+  partner: { 
+    action: "provision_discount", 
+    data: { "user-data": "goes here", "more-data": "also ok" },
+    meta: { "expires_at": "2025-03-20" } # will expire at 23:59 EST on this date
+  }
+} 
+```
+
+Based on your program terms, TRMNL will generate a coupon with your Partner name + unique suffix.
+
+```
+# response example
+{ status: 200, data: { code: "acme-123456789" } }
+```
+
+If a quota is preferred, for example 50x maximum provisions per month, this endpoint will return a `nil`code value when the quota is breached.
+
+**Step 2 - TRMNL generates a coupon**
+
+Provide the `code`from Step 1 to your customer with instructions to purchase a device from trmnl.com. They can provide this code at checkout.
+
+If your discount is for 100% off, they will not be charged. If your code is for 50% off, they will pay 50% at checkout. You will be billed via invoice later for claimed discount codes during the agreed period. Additional terms are possible, for example requiring customers to pay for shipping, or only subsidizing a device with our regular (vs large size) battery, etc.
+
+**Step 3 - TRMNL pre-loads the Partner's plugin**
+
+Prior to this workflow being implemented, TRMNL should have already tested your custom plugin. Assuming it requires some kind of API credential to be accessed by a TRMNL user's device, the Step 1 payload should include these details inside the `data`node.
+
+Whatever key/values are provided in the `data` node of Step 1 will be saved to the user's pre-loaded plugin when their device is unboxed and set up. Thus these key/values should match exactly the merge variables required by the plugin setting instance.
+
+Contact <partners@trmnl.com> with questions or requests.
+
+

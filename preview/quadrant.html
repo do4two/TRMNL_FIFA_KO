@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://trmnl.com/css/latest/plugins.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  /* preview-only: frame each render at the real device size, 1-bit look */
+  body { background:#888; margin:0; padding:0; font-family:Inter,Arial,sans-serif; }
+  .device { width:400px; height:240px; background:#fff; overflow:hidden; }
+</style>
+</head>
+<body class="environment trmnl">
+  <div class="device">
+<style>
+  :root { --ln: 2px solid #000; --g: 14px; }
+
+  .wm-ko { font-family: 'Inter', Helvetica, Arial, sans-serif; color: #000; }
+  .wm-ko.screen { display: flex; flex-direction: column; width: 100%; height: 100%;
+                  box-sizing: border-box; padding: 6px; gap: 4px; }
+
+  /* header + footer (we skip the public `view` wrapper on purpose) */
+  .ko-head { flex: 0 0 auto; display: flex; align-items: baseline;
+             justify-content: space-between; gap: 8px; }
+  .ko-head .ttl { font-weight: 700; letter-spacing: .02em; }
+  .ko-head .meta { font-weight: 400; }
+  .wm-ko .title_bar { position: static; flex: 0 0 auto; height: auto;
+             border-top: var(--ln); padding: 3px 2px 0; display: flex;
+             align-items: center; justify-content: space-between; gap: 8px; }
+  .wm-ko .title_bar .title { font-weight: 700; }
+
+  /* round caption strip above each side */
+  .ko-caps { flex: 0 0 auto; display: flex; }
+  .ko-caps .cap { flex: 1; text-align: center; font-weight: 600;
+                  text-transform: uppercase; letter-spacing: .03em; }
+  .ko-caps .cap.mid { flex: 0 0 auto; }
+
+  /* the bracket: left side | center | right side */
+  .ko-bracket { flex: 1 1 auto; min-height: 0; display: flex; align-items: stretch; }
+  .ko-side { flex: 1 1 auto; display: flex; min-width: 0; gap: var(--g); }
+  .ko-round { flex: 1 1 0; display: flex; flex-direction: column;
+              justify-content: space-around; min-width: 0; }
+  .ko-match { flex: 1 1 0; display: flex; align-items: center; position: relative;
+              min-height: 0; }
+  .ko-match .mbox { width: 100%; border: var(--ln); box-sizing: border-box;
+                    background: #fff; }
+
+  /* ---- connectors -------------------------------------------------------- */
+  /* LEFT: lines flow rightwards toward the centre */
+  .ko-left .ko-match::after { content: ''; position: absolute; top: 50%;
+        left: 100%; width: var(--g); border-top: var(--ln); }
+  .ko-left .ko-round:not(:first-child) .ko-match::before { content: '';
+        position: absolute; left: 0; top: 25%; bottom: 25%; border-left: var(--ln); }
+  /* RIGHT: mirrored, lines flow leftwards toward the centre */
+  .ko-right .ko-match::after { content: ''; position: absolute; top: 50%;
+        right: 100%; width: var(--g); border-top: var(--ln); }
+  .ko-right .ko-round:not(:last-child) .ko-match::before { content: '';
+        position: absolute; right: 0; top: 25%; bottom: 25%; border-right: var(--ln); }
+
+  /* ---- centre column (final + champion + 3rd place) ---------------------- */
+  .ko-center { flex: 0 0 auto; display: flex; flex-direction: column;
+               justify-content: center; align-items: center; gap: 6px;
+               padding: 0 var(--g); }
+  .ko-final { border: var(--ln); box-sizing: border-box; }
+  .ko-final .fhd { background: #000; color: #fff; text-align: center;
+                   font-weight: 700; letter-spacing: .06em; padding: 1px 8px; }
+  .ko-champ { text-align: center; font-weight: 700; }
+  .ko-champ .cup { font-weight: 700; }
+  .ko-champ .cname { display: block; }
+  .ko-third { text-align: center; }
+  .ko-third .lbl { font-weight: 600; text-transform: uppercase;
+                   letter-spacing: .03em; }
+
+  /* ---- one match card ---------------------------------------------------- */
+  .mrow { display: flex; align-items: center; gap: 4px; padding: 1px 4px;
+          line-height: 1.2; white-space: nowrap; }
+  .mrow + .mrow { border-top: 1px solid #000; }
+  .mrow .cd { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; }
+  .mrow .sc { flex: 0 0 auto; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .mrow.win .cd { font-weight: 700; }
+  .mrow.lose .cd { text-decoration: line-through; font-weight: 400; }
+  .mrow.tbd .cd { font-style: italic; }      /* placeholder slot */
+  .mbox .note { display: block; text-align: right; padding: 0 4px 1px;
+                font-weight: 700; }
+
+  /* ---- density tiers ----------------------------------------------------- */
+  .d-full  { font-size: 10px; }
+  .d-full  .ko-head { font-size: 12px; }
+  .d-full  .ko-caps { font-size: 8px; }
+  .d-full  .ko-final .fhd { font-size: 10px; }
+  .d-full  .ko-champ { font-size: 12px; }
+  .d-full  .ko-final .mrow { font-size: 11px; }
+
+  .d-half  { font-size: 11px; --g: 12px; }
+  .d-half  .ko-head { font-size: 12px; }
+  .d-half  .ko-caps { font-size: 9px; }
+  .d-half  .ko-champ { font-size: 12px; }
+
+  .d-quad  { font-size: 16px; --g: 16px; }
+  .d-quad  .ko-head { font-size: 14px; }
+  .d-quad  .ko-caps { font-size: 11px; }
+  .d-quad  .mrow { padding: 3px 6px; }
+  .d-quad  .ko-final .fhd { font-size: 13px; }
+  .d-quad  .ko-champ { font-size: 16px; }
+
+  .d-tall  { font-size: 13px; --g: 14px; }
+  .d-tall  .ko-head { font-size: 13px; }
+  .d-tall  .ko-caps { font-size: 9px; }
+  .d-tall  .mrow { padding: 2px 5px; }
+  .d-tall  .ko-champ { font-size: 14px; }
+
+  /* legend */
+  .ko-legend { display: flex; gap: 12px; align-items: center; }
+  .ko-legend b { font-weight: 700; }
+  .ko-legend s { text-decoration: line-through; }
+  .ko-legend i { font-style: italic; }
+</style>
+
+
+<div class="screen wm-ko d-quad">
+
+  <div class="ko-head">
+    <span class="ttl">⚽ WM 2026 · Halbfinals</span>
+    <span class="meta">★ KOR</span>
+  </div>
+
+  <div class="ko-bracket">
+    <div class="ko-side ko-left">
+      <div class="ko-round"><div class="ko-match"><div class="mbox"><div class="mrow win"><span class="cd">KOR</span><span class="sc">2</span></div><div class="mrow lose"><span class="cd">NED</span><span class="sc">1</span></div><span class="note"></span></div></div></div>
+    </div>
+
+    <div class="ko-center">
+      <div class="ko-final"><div class="fhd">FINALE</div><div class="mrow win"><span class="cd">KOR</span><span class="sc">0</span></div><div class="mrow lose"><span class="cd">SUI</span><span class="sc">0</span></div><span class="note">i.E.</span></div>
+    </div>
+
+    <div class="ko-side ko-right">
+      <div class="ko-round"><div class="ko-match"><div class="mbox"><div class="mrow win"><span class="cd">SUI</span><span class="sc">1</span></div><div class="mrow lose"><span class="cd">IRN</span><span class="sc">1</span></div><span class="note">i.E.</span></div></div></div>
+    </div>
+  </div>
+</div>
+</div>
+</body>
+</html>

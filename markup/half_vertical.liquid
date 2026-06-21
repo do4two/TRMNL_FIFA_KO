@@ -1,0 +1,30 @@
+{% comment %}
+  HALF VERTICAL (400x480): only the late rounds, meeting in the middle.
+  Columns: QF·SF | FINAL | SF·QF  — narrow but tall, so the four quarter-final
+  pairings stay clearly legible. Champion + 3rd place shown in the centre.
+{% endcomment %}
+<div class="screen wm-ko d-tall">
+
+  <div class="ko-head">
+    <span class="ttl">⚽ WM 2026 · Finalrunde</span>
+    <span class="meta">{{ ko_played }}/{{ ko_total }}</span>
+  </div>
+
+  <div class="ko-bracket">
+    <div class="ko-side ko-left">
+      <div class="ko-round">{% for m in left.qf %}<div class="ko-match"><div class="mbox"><div class="mrow{% if m.t1.winner %} win{% elsif m.t1.loser %} lose{% endif %}{% unless m.t1.resolved %} tbd{% endunless %}"><span class="cd">{{ m.t1.code }}</span>{% if m.t1.score != nil %}<span class="sc">{{ m.t1.score }}</span>{% endif %}</div><div class="mrow{% if m.t2.winner %} win{% elsif m.t2.loser %} lose{% endif %}{% unless m.t2.resolved %} tbd{% endunless %}"><span class="cd">{{ m.t2.code }}</span>{% if m.t2.score != nil %}<span class="sc">{{ m.t2.score }}</span>{% endif %}</div>{% if m.note %}<span class="note">{{ m.note }}</span>{% endif %}</div></div>{% endfor %}</div>
+      <div class="ko-round">{% for m in left.sf %}<div class="ko-match"><div class="mbox"><div class="mrow{% if m.t1.winner %} win{% elsif m.t1.loser %} lose{% endif %}{% unless m.t1.resolved %} tbd{% endunless %}"><span class="cd">{{ m.t1.code }}</span>{% if m.t1.score != nil %}<span class="sc">{{ m.t1.score }}</span>{% endif %}</div><div class="mrow{% if m.t2.winner %} win{% elsif m.t2.loser %} lose{% endif %}{% unless m.t2.resolved %} tbd{% endunless %}"><span class="cd">{{ m.t2.code }}</span>{% if m.t2.score != nil %}<span class="sc">{{ m.t2.score }}</span>{% endif %}</div>{% if m.note %}<span class="note">{{ m.note }}</span>{% endif %}</div></div>{% endfor %}</div>
+    </div>
+
+    <div class="ko-center">
+      {% if champion %}<div class="ko-champ"><span class="cup">★</span><span class="cname">{{ champion.code }}</span></div>{% endif %}
+      {% if final %}<div class="ko-final"><div class="fhd">FINALE</div><div class="mrow{% if final.t1.winner %} win{% elsif final.t1.loser %} lose{% endif %}{% unless final.t1.resolved %} tbd{% endunless %}"><span class="cd">{{ final.t1.code }}</span>{% if final.t1.score != nil %}<span class="sc">{{ final.t1.score }}</span>{% endif %}</div><div class="mrow{% if final.t2.winner %} win{% elsif final.t2.loser %} lose{% endif %}{% unless final.t2.resolved %} tbd{% endunless %}"><span class="cd">{{ final.t2.code }}</span>{% if final.t2.score != nil %}<span class="sc">{{ final.t2.score }}</span>{% endif %}</div>{% if final.note %}<span class="note">{{ final.note }}</span>{% endif %}</div>{% endif %}
+      {% if third %}<div class="ko-third"><span class="lbl">Platz 3</span><div>{{ third.t1.code }} {{ third.score_str }} {{ third.t2.code }}</div></div>{% endif %}
+    </div>
+
+    <div class="ko-side ko-right">
+      <div class="ko-round">{% for m in right.sf %}<div class="ko-match"><div class="mbox"><div class="mrow{% if m.t1.winner %} win{% elsif m.t1.loser %} lose{% endif %}{% unless m.t1.resolved %} tbd{% endunless %}"><span class="cd">{{ m.t1.code }}</span>{% if m.t1.score != nil %}<span class="sc">{{ m.t1.score }}</span>{% endif %}</div><div class="mrow{% if m.t2.winner %} win{% elsif m.t2.loser %} lose{% endif %}{% unless m.t2.resolved %} tbd{% endunless %}"><span class="cd">{{ m.t2.code }}</span>{% if m.t2.score != nil %}<span class="sc">{{ m.t2.score }}</span>{% endif %}</div>{% if m.note %}<span class="note">{{ m.note }}</span>{% endif %}</div></div>{% endfor %}</div>
+      <div class="ko-round">{% for m in right.qf %}<div class="ko-match"><div class="mbox"><div class="mrow{% if m.t1.winner %} win{% elsif m.t1.loser %} lose{% endif %}{% unless m.t1.resolved %} tbd{% endunless %}"><span class="cd">{{ m.t1.code }}</span>{% if m.t1.score != nil %}<span class="sc">{{ m.t1.score }}</span>{% endif %}</div><div class="mrow{% if m.t2.winner %} win{% elsif m.t2.loser %} lose{% endif %}{% unless m.t2.resolved %} tbd{% endunless %}"><span class="cd">{{ m.t2.code }}</span>{% if m.t2.score != nil %}<span class="sc">{{ m.t2.score }}</span>{% endif %}</div>{% if m.note %}<span class="note">{{ m.note }}</span>{% endif %}</div></div>{% endfor %}</div>
+    </div>
+  </div>
+</div>

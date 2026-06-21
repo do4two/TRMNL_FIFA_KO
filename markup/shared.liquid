@@ -1,0 +1,120 @@
+{% comment %}
+  SHARED MARKUP — paste into the TRMNL private-plugin "Shared Markup" field.
+  TRMNL prepends this to every layout, so the styles + the {% raw %}{% render %}{% endraw %}-style
+  match snippet below are available to full / half_horizontal / half_vertical /
+  quadrant.
+
+  Design: 1-bit (pure black/white) e-ink, 800x480, high contrast, a knockout
+  "tournament tree" that meets in the middle. No greyscale reliance — the winner
+  is bold, the loser struck through (solid black line), placeholders are shown
+  in a lighter (hairline-bordered) chip. Connectors are solid 2px black lines.
+
+  Bracket geometry: every .ko-round is an equal flex column and every .ko-match
+  an equal flex slot (flex:1). With a perfect 8->4->2->1 fan-in each next-round
+  match sits exactly at the midpoint of its two feeders, so the connectors
+  (horizontal stub per match + a vertical line spanning 25%–75% of the slot)
+  line up at any size without hard-coded pixels.
+{% endcomment %}
+<style>
+  :root { --ln: 2px solid #000; --g: 14px; }
+
+  .wm-ko { font-family: 'Inter', Helvetica, Arial, sans-serif; color: #000; }
+  .wm-ko.screen { display: flex; flex-direction: column; width: 100%; height: 100%;
+                  box-sizing: border-box; padding: 6px; gap: 4px; }
+
+  /* header + footer (we skip the public `view` wrapper on purpose) */
+  .ko-head { flex: 0 0 auto; display: flex; align-items: baseline;
+             justify-content: space-between; gap: 8px; }
+  .ko-head .ttl { font-weight: 700; letter-spacing: .02em; }
+  .ko-head .meta { font-weight: 400; }
+  .wm-ko .title_bar { position: static; flex: 0 0 auto; height: auto;
+             border-top: var(--ln); padding: 3px 2px 0; display: flex;
+             align-items: center; justify-content: space-between; gap: 8px; }
+  .wm-ko .title_bar .title { font-weight: 700; }
+
+  /* round caption strip above each side */
+  .ko-caps { flex: 0 0 auto; display: flex; }
+  .ko-caps .cap { flex: 1; text-align: center; font-weight: 600;
+                  text-transform: uppercase; letter-spacing: .03em; }
+  .ko-caps .cap.mid { flex: 0 0 auto; }
+
+  /* the bracket: left side | center | right side */
+  .ko-bracket { flex: 1 1 auto; min-height: 0; display: flex; align-items: stretch; }
+  .ko-side { flex: 1 1 auto; display: flex; min-width: 0; gap: var(--g); }
+  .ko-round { flex: 1 1 0; display: flex; flex-direction: column;
+              justify-content: space-around; min-width: 0; }
+  .ko-match { flex: 1 1 0; display: flex; align-items: center; position: relative;
+              min-height: 0; }
+  .ko-match .mbox { width: 100%; border: var(--ln); box-sizing: border-box;
+                    background: #fff; }
+
+  /* ---- connectors -------------------------------------------------------- */
+  /* LEFT: lines flow rightwards toward the centre */
+  .ko-left .ko-match::after { content: ''; position: absolute; top: 50%;
+        left: 100%; width: var(--g); border-top: var(--ln); }
+  .ko-left .ko-round:not(:first-child) .ko-match::before { content: '';
+        position: absolute; left: 0; top: 25%; bottom: 25%; border-left: var(--ln); }
+  /* RIGHT: mirrored, lines flow leftwards toward the centre */
+  .ko-right .ko-match::after { content: ''; position: absolute; top: 50%;
+        right: 100%; width: var(--g); border-top: var(--ln); }
+  .ko-right .ko-round:not(:last-child) .ko-match::before { content: '';
+        position: absolute; right: 0; top: 25%; bottom: 25%; border-right: var(--ln); }
+
+  /* ---- centre column (final + champion + 3rd place) ---------------------- */
+  .ko-center { flex: 0 0 auto; display: flex; flex-direction: column;
+               justify-content: center; align-items: center; gap: 6px;
+               padding: 0 var(--g); }
+  .ko-final { border: var(--ln); box-sizing: border-box; }
+  .ko-final .fhd { background: #000; color: #fff; text-align: center;
+                   font-weight: 700; letter-spacing: .06em; padding: 1px 8px; }
+  .ko-champ { text-align: center; font-weight: 700; }
+  .ko-champ .cup { font-weight: 700; }
+  .ko-champ .cname { display: block; }
+  .ko-third { text-align: center; }
+  .ko-third .lbl { font-weight: 600; text-transform: uppercase;
+                   letter-spacing: .03em; }
+
+  /* ---- one match card ---------------------------------------------------- */
+  .mrow { display: flex; align-items: center; gap: 4px; padding: 1px 4px;
+          line-height: 1.2; white-space: nowrap; }
+  .mrow + .mrow { border-top: 1px solid #000; }
+  .mrow .cd { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; }
+  .mrow .sc { flex: 0 0 auto; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .mrow.win .cd { font-weight: 700; }
+  .mrow.lose .cd { text-decoration: line-through; font-weight: 400; }
+  .mrow.tbd .cd { font-style: italic; }      /* placeholder slot */
+  .mbox .note { display: block; text-align: right; padding: 0 4px 1px;
+                font-weight: 700; }
+
+  /* ---- density tiers ----------------------------------------------------- */
+  .d-full  { font-size: 10px; }
+  .d-full  .ko-head { font-size: 12px; }
+  .d-full  .ko-caps { font-size: 8px; }
+  .d-full  .ko-final .fhd { font-size: 10px; }
+  .d-full  .ko-champ { font-size: 12px; }
+  .d-full  .ko-final .mrow { font-size: 11px; }
+
+  .d-half  { font-size: 11px; --g: 12px; }
+  .d-half  .ko-head { font-size: 12px; }
+  .d-half  .ko-caps { font-size: 9px; }
+  .d-half  .ko-champ { font-size: 12px; }
+
+  .d-quad  { font-size: 16px; --g: 16px; }
+  .d-quad  .ko-head { font-size: 14px; }
+  .d-quad  .ko-caps { font-size: 11px; }
+  .d-quad  .mrow { padding: 3px 6px; }
+  .d-quad  .ko-final .fhd { font-size: 13px; }
+  .d-quad  .ko-champ { font-size: 16px; }
+
+  .d-tall  { font-size: 13px; --g: 14px; }
+  .d-tall  .ko-head { font-size: 13px; }
+  .d-tall  .ko-caps { font-size: 9px; }
+  .d-tall  .mrow { padding: 2px 5px; }
+  .d-tall  .ko-champ { font-size: 14px; }
+
+  /* legend */
+  .ko-legend { display: flex; gap: 12px; align-items: center; }
+  .ko-legend b { font-weight: 700; }
+  .ko-legend s { text-decoration: line-through; }
+  .ko-legend i { font-style: italic; }
+</style>
