@@ -1,0 +1,389 @@
+{% comment %}
+  Shared markup for the TRMNL-hosted private plugin.
+
+  TRMNL supplies Screen and View. Each layout file supplies exactly one
+  `.layout` element, as required by Framework 3.x:
+
+      Screen (platform) -> View (platform) -> Layout (plugin)
+
+  Do not add or override `.screen`, `.view`, viewport dimensions, transforms,
+  or fixed positioning here. Device sizing and the TRMNL X scale factor belong
+  to the platform-provided screen context.
+
+  Container-query units are relative to the actual layout slot. They therefore
+  work for full, half-horizontal, half-vertical, and quadrant views on both the
+  800x480 OG and the larger TRMNL X logical canvas.
+{% endcomment %}
+<style>
+  .wm-ko {
+    --ko-revision: 20260622-1415;
+    --ln: 0.2em solid #000;
+    --g: 1.4em;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    padding: 0.6em;
+    gap: 0.4em;
+    overflow: hidden;
+    font-family: Inter, Helvetica, Arial, sans-serif;
+    color: #000;
+    background: #fff;
+  }
+
+  /* The platform Layout is a flex container. Percent heights alone can remain
+     intrinsic in the editor preview, so make the single plugin canvas consume
+     the complete main and cross axis of the provided layout slot. */
+  .ko-canvas {
+    flex: 1 1 100%;
+    align-self: stretch;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* REV 20260622-1415: explicit platform-context sizing. This selector is
+     intentionally more specific than the generic Framework layout rules. */
+  .trmnl .layout > .ko-canvas {
+    flex: 1 1 100% !important;
+    align-self: stretch !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+  }
+
+  .wm-ko *,
+  .wm-ko *::before,
+  .wm-ko *::after {
+    box-sizing: border-box;
+  }
+
+  .ko-head {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.8em;
+    min-width: 0;
+  }
+
+  .ko-head .ttl {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  .ko-head .meta {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: right;
+    font-weight: 400;
+  }
+
+  .ko-caps {
+    flex: 0 0 auto;
+    display: flex;
+    min-width: 0;
+  }
+
+  .ko-caps .cap {
+    flex: 1 1 0;
+    min-width: 0;
+    text-align: center;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .ko-caps .cap.mid {
+    flex: 0 0 auto;
+  }
+
+  .ko-bracket {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    align-items: stretch;
+  }
+
+  .ko-side {
+    flex: 1 1 0;
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    gap: var(--g);
+  }
+
+  .ko-round {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .ko-match {
+    flex: 1 1 0;
+    display: flex;
+    align-items: center;
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .ko-match .mbox {
+    width: 100%;
+    min-width: 0;
+    border: var(--ln);
+    background: #fff;
+  }
+
+  .ko-left .ko-match::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 100%;
+    width: var(--g);
+    border-top: var(--ln);
+  }
+
+  .ko-left .ko-round:not(:first-child) .ko-match::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 25%;
+    bottom: 25%;
+    border-left: var(--ln);
+  }
+
+  .ko-right .ko-match::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    right: 100%;
+    width: var(--g);
+    border-top: var(--ln);
+  }
+
+  .ko-right .ko-round:not(:last-child) .ko-match::before {
+    content: "";
+    position: absolute;
+    right: 0;
+    top: 25%;
+    bottom: 25%;
+    border-right: var(--ln);
+  }
+
+  .ko-center {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 0.6em;
+    padding: 0 var(--g);
+  }
+
+  .ko-final {
+    min-width: 0;
+    border: var(--ln);
+    background: #fff;
+  }
+
+  .ko-final .fhd {
+    padding: 0.1em 0.8em;
+    overflow: hidden;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    background: #000;
+    color: #fff;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+  }
+
+  .ko-champ,
+  .ko-third {
+    text-align: center;
+  }
+
+  .ko-champ {
+    font-weight: 700;
+  }
+
+  .ko-champ .cname {
+    display: block;
+  }
+
+  .ko-third .lbl {
+    display: block;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .mrow {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+    min-width: 0;
+    padding: 0.1em 0.4em;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .mrow + .mrow {
+    border-top: 0.1em solid #000;
+  }
+
+  .mrow .cd {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mrow .sc {
+    flex: 0 0 auto;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .mrow.win .cd {
+    font-weight: 700;
+  }
+
+  .mrow.lose .cd {
+    font-weight: 400;
+    text-decoration: line-through;
+  }
+
+  .mrow.tbd .cd {
+    font-style: italic;
+  }
+
+  .mbox .note,
+  .ko-final .note {
+    display: block;
+    padding: 0 0.4em 0.1em;
+    text-align: right;
+    font-weight: 700;
+  }
+
+  .ko-footer {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8em;
+    min-width: 0;
+    padding: 0.3em 0.2em 0;
+    border-top: var(--ln);
+  }
+
+  .ko-footer-title {
+    flex: 0 0 auto;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .ko-legend {
+    flex: 0 1 auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 1.2em;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .ko-legend b {
+    font-weight: 700;
+  }
+
+  .ko-legend s {
+    text-decoration: line-through;
+  }
+
+  .ko-legend i {
+    font-style: italic;
+  }
+
+  /* OG: 10px at ~800px layout width. TRMNL X grows proportionally on its
+     larger logical canvas. Mashup layouts use their own container width. */
+  .d-full {
+    font-size: 1.25cqw;
+  }
+
+  .d-full .ko-head {
+    font-size: 1.2em;
+  }
+
+  .d-full .ko-caps {
+    font-size: 0.8em;
+  }
+
+  .d-full .ko-final .mrow {
+    font-size: 1.1em;
+  }
+
+  .d-full .ko-champ {
+    font-size: 1.2em;
+  }
+
+  .d-half {
+    --g: 1.0909em;
+    font-size: 1.375cqw;
+  }
+
+  .d-half .ko-head,
+  .d-half .ko-champ {
+    font-size: 1.0909em;
+  }
+
+  .d-quad {
+    --g: 1em;
+    font-size: 4cqw;
+  }
+
+  .d-quad .ko-head {
+    font-size: 0.875em;
+  }
+
+  .d-quad .mrow {
+    padding: 0.1875em 0.375em;
+  }
+
+  .d-quad .ko-final .fhd {
+    font-size: 0.8125em;
+  }
+
+  .d-tall {
+    --g: 1.0769em;
+    font-size: 3.25cqw;
+  }
+
+  .d-tall .mrow {
+    padding: 0.1538em 0.3846em;
+  }
+
+  @supports not (font-size: 1cqw) {
+    .d-full { font-size: 10px; }
+    .d-half { font-size: 11px; }
+    .d-quad { font-size: 16px; }
+    .d-tall { font-size: 13px; }
+  }
+</style>

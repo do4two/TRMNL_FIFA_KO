@@ -5,10 +5,11 @@
   (The match card markup is inlined per round — TRMNL only prepends "Shared
   Markup", there is no partial include, so the small card block is repeated.)
 {% endcomment %}
-<div class="screen wm-ko d-full">
+<div class="layout layout--col">
+<div class="wm-ko ko-canvas d-full">
 
   <div class="ko-head">
-    <span class="ttl">⚽ WM 2026 · K.-o.-Runde</span>
+    <span class="ttl">⚽ FIFA WM 2026 - K.O. Runde</span>
     <span class="meta">{{ ko_played }}/{{ ko_total }} entschieden · Stand {{ updated_at }}</span>
   </div>
 
@@ -42,8 +43,9 @@
     </div>
   </div>
 
-  <div class="title_bar">
-    <span class="title">Sieger rückt nach innen → Finale</span>
-    <span class="instance"><span class="ko-legend"><span><b>Sieger</b></span><span><s>Verlierer</s></span><span><i>offen</i></span><span>i.E. Elfmeter · n.V. Verläng.</span></span></span>
+  <div class="ko-footer">
+    <span class="ko-footer-title">Sieger rückt nach innen → Finale</span>
+    <span class="ko-legend"><span><b>Sieger</b></span><span><s>Verlierer</s></span><span><i>offen</i></span><span>i.E. Elfmeter · n.V. Verläng.</span></span>
   </div>
+</div>
 </div>

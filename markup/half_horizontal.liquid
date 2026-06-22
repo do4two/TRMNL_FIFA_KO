@@ -3,10 +3,11 @@
   halves meeting in the middle. Columns: R16·QF·SF | FINAL | SF·QF·R16
   (Round of 32 is dropped here so the codes stay legible at 240px tall.)
 {% endcomment %}
-<div class="screen wm-ko d-half">
+<div class="layout layout--col">
+<div class="wm-ko ko-canvas d-half">
 
   <div class="ko-head">
-    <span class="ttl">⚽ WM 2026 · Achtelfinale →</span>
+    <span class="ttl">⚽ FIFA WM 2026 - K.O. Runde</span>
     <span class="meta">{{ ko_played }}/{{ ko_total }} entschieden · {{ updated_at }}</span>
   </div>
 
@@ -28,4 +29,5 @@
       <div class="ko-round">{% for m in right.r16 %}<div class="ko-match"><div class="mbox"><div class="mrow{% if m.t1.winner %} win{% elsif m.t1.loser %} lose{% endif %}{% unless m.t1.resolved %} tbd{% endunless %}"><span class="cd">{{ m.t1.code }}</span>{% if m.t1.score != nil %}<span class="sc">{{ m.t1.score }}</span>{% endif %}</div><div class="mrow{% if m.t2.winner %} win{% elsif m.t2.loser %} lose{% endif %}{% unless m.t2.resolved %} tbd{% endunless %}"><span class="cd">{{ m.t2.code }}</span>{% if m.t2.score != nil %}<span class="sc">{{ m.t2.score }}</span>{% endif %}</div>{% if m.note %}<span class="note">{{ m.note }}</span>{% endif %}</div></div>{% endfor %}</div>
     </div>
   </div>
+</div>
 </div>

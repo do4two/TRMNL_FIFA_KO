@@ -100,6 +100,11 @@ check("pre: no champion", pre["champion"] is None)
 check("pre: final is placeholder", not pre["final"]["t1"]["resolved"])
 check("pre: 8 R32 matches per side", len(pre["left"]["r32"]) == 8 and len(pre["right"]["r32"]) == 8)
 check("pre: robust to no results (final not decided)", pre["final"]["decided"] is False)
+# Mexico has six points and beat South Korea head-to-head. Even before the
+# final group games, no remaining scenario can dislodge Mexico from first.
+pre79 = next(x for x in pre["right"]["r32"] if x["num"] == 79)
+check("clinch: incomplete Group A already resolves 1A = Mexico",
+      pre79["t1"]["code"] == "MEX" and pre79["t1"]["resolved"])
 
 # --------------------------------------------------------------------------- #
 # full assembly: a played-out branch resolves and crowns a champion
@@ -150,6 +155,31 @@ gbr = B.build_bracket(real_teams, gmatches)
 # R32 match 79 = "1A" vs a third-place slot; it lives on the right half
 m79 = next(x for x in gbr["right"]["r32"] if x["num"] == 79)
 check("match 79 t1 auto-fills to MEX once group A done", m79["t1"]["code"] == "MEX" and m79["t1"]["resolved"])
+
+# --------------------------------------------------------------------------- #
+# integration: a head-to-head clinch resolves before all group games are played
+# --------------------------------------------------------------------------- #
+ematches = copy.deepcopy(matches)
+for x in ematches:
+    if x.get("group") != "Group E":
+        continue
+    pair = {x["team1"], x["team2"]}
+    if pair == {"Germany", "Ivory Coast"}:
+        x["score"] = {"ft": [2, 1]}
+    elif pair == {"Ecuador", "Curaçao"}:
+        x["score"] = {"ft": [0, 0]}
+
+egp = B._group_positions(real_teams, ematches)
+check("clinch: incomplete Group E resolves 1E = Germany",
+      egp.get("E", {}).get(1, {}).get("code") == "GER")
+check("clinch: incomplete Group E does not invent a runner-up",
+      2 not in egp.get("E", {}))
+
+# Group D is not yet a guaranteed winner in the cached state: a three-team
+# points tie can still require score-margin tiebreakers.
+dgp = B._group_positions(real_teams, matches)
+check("clinch: unresolved Group D keeps 1D open",
+      1 not in dgp.get("D", {}))
 
 # --------------------------------------------------------------------------- #
 print()

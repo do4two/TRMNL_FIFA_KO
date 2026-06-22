@@ -2,7 +2,8 @@
   QUADRANT (400x240): the "Final Four" only — both semi-finals meeting at the
   Final. Columns: SF | FINAL | SF. Largest type, fully legible at a glance.
 {% endcomment %}
-<div class="screen wm-ko d-quad">
+<div class="layout layout--col">
+<div class="wm-ko ko-canvas d-quad">
 
   <div class="ko-head">
     <span class="ttl">⚽ WM 2026 · Halbfinals</span>
@@ -22,4 +23,5 @@
       <div class="ko-round">{% for m in right.sf %}<div class="ko-match"><div class="mbox"><div class="mrow{% if m.t1.winner %} win{% elsif m.t1.loser %} lose{% endif %}{% unless m.t1.resolved %} tbd{% endunless %}"><span class="cd">{{ m.t1.code }}</span>{% if m.t1.score != nil %}<span class="sc">{{ m.t1.score }}</span>{% endif %}</div><div class="mrow{% if m.t2.winner %} win{% elsif m.t2.loser %} lose{% endif %}{% unless m.t2.resolved %} tbd{% endunless %}"><span class="cd">{{ m.t2.code }}</span>{% if m.t2.score != nil %}<span class="sc">{{ m.t2.score }}</span>{% endif %}</div>{% if m.note %}<span class="note">{{ m.note }}</span>{% endif %}</div></div>{% endfor %}</div>
     </div>
   </div>
+</div>
 </div>

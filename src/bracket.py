@@ -103,23 +103,33 @@ def _score_str(match):
 
 
 # --------------------------------------------------------------------------- #
-# group winner / runner-up resolution (only when a group is fully played)
+# group winner / runner-up resolution
 # --------------------------------------------------------------------------- #
 def _group_positions(teams, matches):
-    """letter -> {1: rowdict, 2: rowdict} for groups whose 6 games are all
-    played (final order fixed). Reuses the tested group-standings module."""
+    """letter -> {1: rowdict, 2: rowdict} for mathematically fixed positions.
+
+    Before a group is complete, only positions proven under every remaining
+    W/D/L scenario are exposed. Once all games are played, the final table
+    supplies positions 1 and 2 as before.
+    """
     groups = S.build_standings(teams, matches)
     out = {}
     for g in groups:
         letter = g["name"]
         gms = S.group_matches(matches, letter)
+        ordered = g["teams"]
+        pos = {}
         if gms and all(S.is_played(m) for m in gms):
-            ordered = g["teams"]
-            pos = {}
             if len(ordered) >= 1:
                 pos[1] = ordered[0]
             if len(ordered) >= 2:
                 pos[2] = ordered[1]
+        else:
+            for row in ordered:
+                clinched = row.get("clinched_position")
+                if clinched in (1, 2):
+                    pos[clinched] = row
+        if pos:
             out[letter] = pos
     return out
 

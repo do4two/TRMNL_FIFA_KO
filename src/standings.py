@@ -9,12 +9,13 @@ the openfootball/worldcup.json structure:
 
 A match counts as *played* iff it has score.ft == [int, int].
 
-Group order (FIFA tiebreakers, in this order):
-  1) points  2) goal difference  3) goals for
-  4) head-to-head among the still-tied teams (pts, gd, gf in their mutual games)
-  5) fair play  6) drawing of lots
-Fair play / lots data are not available in the source, so once 1–4 cannot
-break a tie we fall back to alphabetical order (documented in the README).
+Group order (FIFA 2026 tiebreakers, abbreviated to the available data):
+  1) points
+  2) head-to-head among tied teams (points, goal difference, goals scored)
+  3) overall goal difference, then overall goals scored
+  4) team conduct and FIFA ranking
+Conduct/ranking data are not available in the source, so a fully unresolved
+tie falls back to alphabetical order for display only.
 
 "Safe qualification" / elimination is computed by brute force over every
 possible win/draw/loss combination of the remaining group matches. This is
@@ -124,39 +125,37 @@ def _head_to_head(tied_names, matches):
 def sort_group(rows, matches):
     """Sort rows applying FIFA tiebreakers; returns ordered list of rows."""
     names = list(rows)
-    # 1-3: overall points, gd, gf
-    names.sort(key=lambda n: (rows[n]["pts"], rows[n]["gd"], rows[n]["gf"], ),
-               reverse=True)
-
-    # 4: head-to-head within blocks still tied on (pts, gd, gf)
-    def block_key(n):
-        return (rows[n]["pts"], rows[n]["gd"], rows[n]["gf"])
+    names.sort(key=lambda n: rows[n]["pts"], reverse=True)
 
     ordered = []
     i = 0
     while i < len(names):
         j = i
-        while j + 1 < len(names) and block_key(names[j + 1]) == block_key(names[i]):
+        while j + 1 < len(names) and rows[names[j + 1]]["pts"] == rows[names[i]]["pts"]:
             j += 1
         block = names[i:j + 1]
         if len(block) > 1:
             h = _head_to_head(block, matches)
             block.sort(
-                key=lambda n: (h[n]["pts"], h[n]["gd"], h[n]["gf"], ),
+                key=lambda n: (
+                    h[n]["pts"], h[n]["gd"], h[n]["gf"],
+                    rows[n]["gd"], rows[n]["gf"],
+                ),
                 reverse=True,
             )
-            # 5/6 fair play & lots unavailable -> stable alphabetical fallback
-            # (re-sort sub-blocks that are still fully tied on h2h)
-            block = _alpha_tiebreak(block, h, rows, matches)
+            block = _alpha_tiebreak(block, h, rows)
         ordered.extend(block)
         i = j + 1
     return [rows[n] for n in ordered]
 
 
-def _alpha_tiebreak(block, h, rows, matches):
+def _alpha_tiebreak(block, h, rows):
     out = []
     i = 0
-    keyf = lambda n: (h[n]["pts"], h[n]["gd"], h[n]["gf"])
+    keyf = lambda n: (
+        h[n]["pts"], h[n]["gd"], h[n]["gf"],
+        rows[n]["gd"], rows[n]["gf"],
+    )
     while i < len(block):
         j = i
         while j + 1 < len(block) and keyf(block[j + 1]) == keyf(block[i]):
@@ -170,14 +169,22 @@ def _alpha_tiebreak(block, h, rows, matches):
 # --------------------------------------------------------------------------- #
 # qualification logic (brute force over remaining group results)
 # --------------------------------------------------------------------------- #
-def _scenarios_points(rows, matches, team_names):
-    """Yield dict name->final points for every W/D/L combo of remaining games."""
+def _scenarios(rows, matches, team_names):
+    """Yield (final points, simulated outcomes) for every remaining W/D/L combo.
+
+    simulated outcomes map id(match) to 0/1/2 (team1 win/draw/team2 win).
+    Goal margins are intentionally left unknown; clinch decisions therefore
+    remain conservative whenever points and head-to-head points do not decide
+    a tie.
+    """
     base = {n: rows[n]["pts"] for n in team_names}
     remaining = [m for m in matches if not is_played(m)
                  and m["team1"] in base and m["team2"] in base]
     for combo in product((0, 1, 2), repeat=len(remaining)):
         pts = dict(base)
+        simulated = {}
         for outcome, m in zip(combo, remaining):
+            simulated[id(m)] = outcome
             if outcome == 0:          # team1 win
                 pts[m["team1"]] += 3
             elif outcome == 1:        # draw
@@ -185,7 +192,42 @@ def _scenarios_points(rows, matches, team_names):
                 pts[m["team2"]] += 1
             else:                     # team2 win
                 pts[m["team2"]] += 3
-        yield pts
+        yield pts, simulated
+
+
+def _scenario_h2h_points(tied_names, matches, simulated):
+    """Head-to-head points for a final tied-on-points block in one scenario."""
+    tied = set(tied_names)
+    out = {n: 0 for n in tied_names}
+    for m in matches:
+        t1, t2 = m.get("team1"), m.get("team2")
+        if t1 not in tied or t2 not in tied:
+            continue
+        if is_played(m):
+            g1, g2 = m["score"]["ft"]
+            outcome = 0 if g1 > g2 else (1 if g1 == g2 else 2)
+        else:
+            outcome = simulated.get(id(m))
+        if outcome == 0:
+            out[t1] += 3
+        elif outcome == 1:
+            out[t1] += 1
+            out[t2] += 1
+        elif outcome == 2:
+            out[t2] += 3
+    return out
+
+
+def _scenario_rank_bounds(name, team_names, pts, matches, simulated):
+    """Return best/worst possible rank with unknown score margins treated safely."""
+    higher_points = sum(1 for other in team_names if pts[other] > pts[name])
+    tied = [other for other in team_names if pts[other] == pts[name]]
+    h2h = _scenario_h2h_points(tied, matches, simulated)
+    higher_h2h = sum(1 for other in tied if h2h[other] > h2h[name])
+    equal_h2h = sum(1 for other in tied if h2h[other] == h2h[name])
+    rank_best = higher_points + higher_h2h + 1
+    rank_worst = higher_points + higher_h2h + equal_h2h
+    return rank_best, rank_worst
 
 
 def analyze_group(team_names, rows, matches):
@@ -197,20 +239,22 @@ def analyze_group(team_names, rows, matches):
     finishes 3rd, over all scenarios) used for the best-third elimination test.
     """
     info = {n: {"qualified_top2": True, "group_winner": True,
-                "cannot_top2": True, "max_pts": 0} for n in team_names}
+                "cannot_top2": True, "max_pts": 0,
+                "possible_positions": set()} for n in team_names}
     third_floor = None
     any_scenario = False
 
-    for pts in _scenarios_points(rows, matches, team_names):
+    for pts, simulated in _scenarios(rows, matches, team_names):
         any_scenario = True
         for n in team_names:
             info[n]["max_pts"] = max(info[n]["max_pts"], pts[n])
-        # worst-case rank for each team (lose every point tie)
         for n in team_names:
-            better = sum(1 for o in team_names if o != n and pts[o] > pts[n])
-            equal = sum(1 for o in team_names if o != n and pts[o] == pts[n])
-            rank_worst = better + equal + 1   # all ties go against n
-            rank_best = better + 1            # all ties favour n
+            rank_best, rank_worst = _scenario_rank_bounds(
+                n, team_names, pts, matches, simulated
+            )
+            info[n]["possible_positions"].update(
+                range(rank_best, rank_worst + 1)
+            )
             if rank_worst > 2:
                 info[n]["qualified_top2"] = False
             if rank_worst > 1:
@@ -224,6 +268,11 @@ def analyze_group(team_names, rows, matches):
 
     if not any_scenario:  # no teams? defensive
         third_floor = 0
+    for n in team_names:
+        possible = info[n].pop("possible_positions")
+        info[n]["clinched_position"] = (
+            next(iter(possible)) if len(possible) == 1 else None
+        )
     return info, third_floor
 
 
@@ -287,6 +336,7 @@ def build_standings(teams, matches):
                 "pts": r["pts"],
                 "qualified": bool(d["qualified_top2"]),
                 "winner": bool(d["group_winner"]),
+                "clinched_position": d["clinched_position"],
                 "eliminated": bool(d.get("eliminated", False)),
             })
         out_groups.append({"name": letter, "teams": teams_out})

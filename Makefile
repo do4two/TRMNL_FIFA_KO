@@ -22,5 +22,6 @@ preview-png:    ## render the 4 layouts to preview/*.html + *.png (needs Google 
 
 test:
 	$(PY) tests/test_bracket.py
+	$(PY) tests/test_markup.py
 
 all: test build preview

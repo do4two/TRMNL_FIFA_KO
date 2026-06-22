@@ -27,28 +27,52 @@ ROOT = os.path.dirname(HERE)
 MARKUP = os.path.join(ROOT, "markup")
 PREVIEW = os.path.join(ROOT, "preview")
 
-# device pixel sizes per TRMNL layout
+# Preview targets:
+# name -> (layout file, view class, mashup class or None, screen classes,
+#          physical width/height).
+#
+# TRMNL X uses the Framework's 1040x780 logical `screen--v2` canvas and the
+# Framework itself scales it by 1.8 to the 1872x1404 panel.
 SIZES = {
-    "full": (800, 480),
-    "half_horizontal": (800, 240),
-    "half_vertical": (400, 480),
-    "quadrant": (400, 240),
+    "full": (
+        "full", "view--full", None, "screen--v2 screen--4bit", 1872, 1404
+    ),
+    "full_og": (
+        "full", "view--full", None, "screen--og screen--1bit", 800, 480
+    ),
+    "half_horizontal": (
+        "half_horizontal", "view--half_horizontal", "mashup--1Tx1B",
+        "screen--v2 screen--4bit", 1872, 702
+    ),
+    "half_vertical": (
+        "half_vertical", "view--half_vertical", "mashup--1Lx1R",
+        "screen--v2 screen--4bit", 936, 1404
+    ),
+    "quadrant": (
+        "quadrant", "view--quadrant", "mashup--2x2",
+        "screen--v2 screen--4bit", 936, 702
+    ),
 }
 
 SHELL = """<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
-<link rel="stylesheet" href="https://trmnl.com/css/latest/plugins.css">
+<link rel="stylesheet" href="https://trmnl.com/css/3.1.1/plugins.css">
+<script src="https://trmnl.com/js/3.1.1/plugins.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
-  /* preview-only: frame each render at the real device size, 1-bit look */
-  body {{ background:#888; margin:0; padding:0; font-family:Inter,Arial,sans-serif; }}
-  .device {{ width:{w}px; height:{h}px; background:#fff; overflow:hidden; }}
+  html, body {{ width:{w}px; height:{h}px; margin:0; overflow:hidden; }}
+  body {{ background:#888; font-family:Inter,Arial,sans-serif; }}
+  .preview-device {{ width:{w}px; height:{h}px; overflow:hidden; background:#fff; }}
 </style>
 </head>
-<body class="environment trmnl">
-  <div class="device">{body}</div>
+<body class="trmnl environment">
+  <div class="preview-device">
+    <div class="screen {screen_classes}">
+{view_markup}
+    </div>
+  </div>
 </body>
 </html>
 """
@@ -70,11 +94,28 @@ def _chrome():
 
 def _screenshot(chrome, html_path, png_path, w, h):
     subprocess.run([
-        chrome, "--headless", "--disable-gpu", "--hide-scrollbars",
+        chrome, "--headless", "--no-sandbox", "--disable-gpu",
+        "--disable-crash-reporter", "--hide-scrollbars",
+        "--user-data-dir=/tmp/trmnl-preview-chrome",
         "--force-device-scale-factor=1", "--default-background-color=FFFFFFFF",
         "--window-size=%d,%d" % (w, h),
         "--screenshot=" + png_path, "file://" + os.path.abspath(html_path),
     ], check=True, capture_output=True)
+
+
+def _view_markup(body, view_class, mashup_class):
+    content_view = '      <div class="view %s">\n%s\n      </div>' % (
+        view_class, body
+    )
+    if not mashup_class:
+        return content_view
+
+    view_count = 4 if mashup_class == "mashup--2x2" else 2
+    empty_view = '      <div class="view %s"></div>' % view_class
+    views = [content_view] + [empty_view] * (view_count - 1)
+    return '      <div class="mashup %s">\n%s\n      </div>' % (
+        mashup_class, "\n".join(views)
+    )
 
 
 def main():
@@ -89,7 +130,7 @@ def main():
     env = Environment()
     os.makedirs(PREVIEW, exist_ok=True)
 
-    with open(os.path.join(MARKUP, "shared.liquid"), encoding="utf-8") as f:
+    with open(os.path.join(MARKUP, "shard.liquid"), encoding="utf-8") as f:
         shared = f.read()
 
     chrome = _chrome() if args.png else None
@@ -97,13 +138,20 @@ def main():
         print("WARNING: --png requested but no Chrome found; writing HTML only",
               file=sys.stderr)
 
-    for name, (w, h) in SIZES.items():
-        with open(os.path.join(MARKUP, name + ".liquid"), encoding="utf-8") as f:
+    for name, (
+        layout_name, view_class, mashup_class, screen_classes, w, h
+    ) in SIZES.items():
+        with open(os.path.join(MARKUP, layout_name + ".liquid"), encoding="utf-8") as f:
             layout = f.read()
         # TRMNL prepends Shared Markup to each view; mirror that here.
         template = env.from_string(shared + "\n" + layout)
         body = template.render(**data)
-        html = SHELL.format(name=name, w=w, h=h, body=body)
+        html = SHELL.format(
+            view_markup=_view_markup(body, view_class, mashup_class),
+            screen_classes=screen_classes,
+            w=w,
+            h=h,
+        )
         html_out = os.path.join(PREVIEW, name + ".html")
         with open(html_out, "w", encoding="utf-8") as f:
             f.write(html)

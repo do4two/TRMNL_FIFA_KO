@@ -1,7 +1,7 @@
 # TRMNL Private Plugin — FIFA WM 2026 K.-o.-Baum
 
-Zeigt den **kompletten K.-o.-Baum der FIFA WM 2026** auf einem 800×480 E‑Ink‑Display
-(1‑bit s/w) — als klassischer Turnierbaum, der **in der Mitte zusammenläuft**:
+Zeigt den **kompletten K.-o.-Baum der FIFA WM 2026** auf TRMNL OG und
+**TRMNL X** — als klassischen Turnierbaum, der **in der Mitte zusammenläuft**:
 linke Hälfte und rechte Hälfte laufen aufeinander zu, das **Finale steht zentral**.
 
 ```
@@ -68,7 +68,7 @@ Die K.-o.-Felder im Detail (das ist der Kern dieses Plugins):
 
 | Muster | Bedeutung | aufgelöst, sobald … | sonst angezeigt als |
 |---|---|---|---|
-| `1A` / `2B` | Gruppensieger / ‑zweiter | die Gruppe **komplett gespielt** ist (Endstand fix) | `1A` / `2B` |
+| `1A` / `2B` | Gruppensieger / ‑zweiter | der konkrete Platz mathematisch sicher ist | `1A` / `2B` |
 | `3A/B/C/D/F` | einer der 8 besten Gruppendritten | die Quelle den echten Teamnamen einträgt | `3.` |
 | `W74` | **Sieger** von Spiel 74 | Spiel 74 entschieden ist | `S.74` |
 | `L101` | **Verlierer** von Spiel 101 | Spiel 101 entschieden ist | `V.101` |
@@ -111,10 +111,12 @@ unten sortiert**, genau wie es das „in der Mitte zusammenlaufende" Layout brau
 (→ `n.V.`), dann `pen` (→ `i.E.`). Ein Unentschieden ohne `et`/`pen` gilt als
 **noch nicht entschieden** (robust gegen unvollständige Daten).
 
-**Gruppen‑Platzhalter** (`1A`/`2A`) werden über das **bestehende, getestete
-Gruppen‑Tabellenmodul** (`src/standings.py`, aus dem Schwester‑Plugin) aufgelöst –
-aber bewusst **erst, wenn alle 6 Gruppenspiele gespielt sind** (dann ist die
-Reihenfolge Platz 1 vs. Platz 2 eindeutig). Vorher bleibt der Platzhalter stehen.
+**Gruppen‑Platzhalter** (`1A`/`2A`) werden über das getestete
+Gruppen‑Tabellenmodul (`src/standings.py`) aufgelöst. Ein Platz wird bereits vor
+dem letzten Gruppenspiel eingesetzt, sobald er unter allen verbleibenden
+Sieg/Remis/Niederlage-Szenarien feststeht. Der direkte Vergleich der punktgleichen
+Teams wird dabei vor Gesamttordifferenz und Gesamttoren berücksichtigt. Nicht
+eindeutig feststehende Plätze bleiben als Platzhalter sichtbar.
 
 Ausgabe‑Payload (Top‑Level‑Keys = Liquid‑Merge‑Variablen):
 
@@ -150,13 +152,13 @@ Alle vier TRMNL‑Layouts liegen in `markup/` und sind **reines Standard‑Liqui
 (lokal wie auf TRMNL identisch renderbar). Mit zunehmender Verkleinerung wird der
 Baum sinnvoll **von außen nach innen reduziert**:
 
-| Datei | Größe | Inhalt |
+| Datei | TRMNL-View | Inhalt |
 |---|---|---|
-| `full.liquid` | 800×480 | **kompletter Baum** ab Sechzehntelfinale (9 Spalten) |
-| `half_horizontal.liquid` | 800×240 | ab **Achtelfinale** (R16 → Finale → R16) |
-| `half_vertical.liquid` | 400×480 | **späte Runden** (Viertelfinale → Finale), inkl. Platz 3 |
-| `quadrant.liquid` | 400×240 | **Final Four** (beide Halbfinals + Finale) |
-| `shared.liquid` | — | gemeinsames CSS (→ TRMNL „Shared Markup") |
+| `full.liquid` | Full | **kompletter Baum** ab Sechzehntelfinale (9 Spalten) |
+| `half_horizontal.liquid` | Half Horizontal | ab **Achtelfinale** (R16 → Finale → R16) |
+| `half_vertical.liquid` | Half Vertical | **späte Runden** (Viertelfinale → Finale), inkl. Platz 3 |
+| `quadrant.liquid` | Quadrant | **Final Four** (beide Halbfinals + Finale) |
+| `shard.liquid` | — | gemeinsames CSS (→ TRMNL „Shared Markup") |
 
 | half_horizontal | half_vertical | quadrant |
 |---|---|---|
@@ -175,6 +177,24 @@ Emoji‑Flagge liegt im Payload unter `flag` bereit). Hervorhebung **nur** über
 Fettung und solide schwarze Linien (Durchstreichen) – **kein Verlass auf
 Graustufen**.
 
+### TRMNL-X-Kompatibilität
+
+Auf `trmnl.com` stellt die Plattform `Screen` und `View` passend zum Zielgerät
+bereit. Die Plugin-Dateien enthalten deshalb die vorgeschriebene
+`Layout`-Ebene und darunter einen isolierten Plugin-Canvas:
+
+```text
+Screen (TRMNL) → View (TRMNL) → Layout → KO-Canvas (dieses Plugin)
+```
+
+Es gibt im Plugin keine eigene `.screen`/`.view`, keine Viewport-Maße, keine
+Transforms und kein `position: fixed`. Größen innerhalb des Baums verwenden
+Container-Query-Units (`cqw`) im inneren Canvas relativ zum tatsächlichen
+Layout-Slot. Die Framework-Klasse `layout--col` verhindert, dass TRMNL Header,
+Baum und Footer als horizontale Reihe anordnet. Damit bleibt dasselbe Markup
+auf dem 800×480 OG, dem logischen 1040×780-Canvas des TRMNL X und in
+Mashup-Slots konsistent.
+
 ---
 
 ## 4. Lokal bauen & rendern
@@ -190,7 +210,7 @@ make build-offline    # aus den zwischengespeicherten data/-Dateien
 make simulate
 
 # Vorschau aller 4 Layouts (HTML, je in echter Gerätegröße)
-make preview
+make preview            # HTML für TRMNL X sowie Full zusätzlich für OG
 make preview-png      # zusätzlich PNGs via Google Chrome (headless)
 
 make test             # 32 Logik-Checks (src/bracket.py)
@@ -243,12 +263,16 @@ TRMNL holt diesen per **Polling** ab.
 2. TRMNL: **Plugins → Private Plugin → New**.
 3. **Strategy: `Polling`**, **Polling URL** = die öffentliche JSON‑URL.
 4. **Markup‑Felder** befüllen:
-   * **Shared Markup** ← `markup/shared.liquid`
+   * **Shared Markup** ← `markup/shard.liquid`
    * **Full** ← `markup/full.liquid`
    * **Half Horizontal** ← `markup/half_horizontal.liquid`
    * **Half Vertical** ← `markup/half_vertical.liquid`
    * **Quadrant** ← `markup/quadrant.liquid`
 5. Speichern → Live‑Preview prüfen → Plugin einer Playlist zuweisen.
+
+Wichtig: In die TRMNL-Markup-Felder nur den Inhalt der jeweiligen Liquid-Datei
+kopieren. Keine zusätzliche `.screen`- oder `.view`-Hülle ergänzen; diese wird
+von der Plattform anhand des gewählten Gerätemodells erzeugt.
 
 Die Top‑Level‑Keys des Polling‑Response (`left`, `right`, `final`, `third`,
 `champion`, `ko_played`, `updated_at` …) stehen im Liquid direkt als `{{ … }}` /
@@ -274,6 +298,7 @@ sinnvoll und schont Batterie/Rate‑Limits; während Spielphasen ggf. 15 min.
 ## 6. Projektstruktur
 
 ```
+backup/                 datierte Snapshots früherer Plugin-Stände
 src/bracket.py         K.-o.-Modell: Topologie, Platzhalter-Auflösung, Sieger (pure, getestet)
 src/standings.py       Gruppen-Tabellen (wiederverwendet zur 1X/2X-Auflösung)
 src/build_data.py      Fetch → Bracket → output/trmnl_data.json (+ --simulate / --webhook)
@@ -285,12 +310,16 @@ output/trmnl_data.json fertiger Polling-/Webhook-Payload
 preview/*.png|html     lokale Render-Vorschau (*_pre = aktueller Platzhalter-Stand)
 ```
 
+Der Stand vor dem TRMNL-X-Strukturumbau vom 22. Juni 2026 liegt vollständig in
+`backup/2026-06-22_13-24-19/`.
+
 ## 7. Bekannte Grenzen
 
 * **Beste Gruppendritte** (`3A/B/C/D/F`): welche Gruppe in welches Sechzehntelfinale
   kommt, regelt eine FIFA‑Zuordnungstabelle, die erst nach der Gruppenphase feststeht.
   Bis die Quelle echte Namen einträgt, wird hier neutral `3.` angezeigt.
-* `1X`/`2X` werden bewusst **erst bei komplett gespielter Gruppe** aufgelöst
-  (eindeutige Reihenfolge), nicht schon bei rechnerischem Clinch.
+* `1X`/`2X` werden sofort bei einem mathematisch sicheren Platz aufgelöst.
+  Wenn unbekannte Torabstände, Team Conduct oder FIFA-Ranking noch relevant
+  werden könnten, bleibt der Platz aus Sicherheitsgründen offen.
 * openfootball ist community‑gepflegt; für offizielle minutengenaue Stände →
   API‑Football (Abschnitt 1).
